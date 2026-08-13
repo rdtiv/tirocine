@@ -26,12 +26,14 @@ const MODELS = [
 const TASKS = [
   {
     name: 'Easy — classify',
+    description: 'One-word classification. Every model should nail this.',
     prompt:
       'Classify the weather condition "light drizzle, 51F" as one of: ' +
       'clear, wet, cold, severe. Reply with one word only.',
   },
   {
     name: 'Medium — extract',
+    description: 'Pull structured facts out of a sentence with no math or logic involved.',
     prompt:
       'From this note, list every city mentioned, comma separated, nothing else: ' +
       '"Flying Dallas to Denver Tuesday, then driving up to Boulder. ' +
@@ -39,6 +41,7 @@ const TASKS = [
   },
   {
     name: 'Hard — reason',
+    description: 'Multi-step word problem. Correct answer is 18 minutes — watch for a split.',
     prompt:
       'A tank holds 210 liters and starts with 30 liters. It fills at 12 L/min ' +
       'and simultaneously drains at 4.5 L/min. After exactly 8 minutes the drain ' +
@@ -56,10 +59,33 @@ interface Result {
   answer: string;
 }
 
+const ANSWER_INDENT = '           '; // lines up under the model-name column below
+const WRAP_WIDTH = 100;
+
+/** Prints text word-wrapped at WRAP_WIDTH, with every line indented — unlike
+ *  relying on the terminal to soft-wrap, this keeps long answers aligned. */
+function printAnswer(text: string): void {
+  const words = text.split(' ');
+  let line = '';
+
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length > WRAP_WIDTH - ANSWER_INDENT.length && line) {
+      console.log(ANSWER_INDENT + line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) console.log(ANSWER_INDENT + line);
+}
+
 const results: Result[] = [];
 
 for (const task of TASKS) {
   console.log(`\n=== ${task.name} ===`);
+  console.log(`${task.description}\n`);
+  console.log(`Prompt: ${task.prompt}\n`);
 
   for (const model of MODELS) {
     const started = Date.now();
@@ -89,9 +115,11 @@ for (const task of TASKS) {
 
     console.log(
       `${model.name.padEnd(10)} ${seconds.toFixed(1).padStart(5)}s  ` +
-        `${String(message.usage.output_tokens).padStart(5)} tok  ` +
-        `${cents.toFixed(4).padStart(8)}¢  ${answer.slice(0, 60)}`,
+        `${String(message.usage.output_tokens).padStart(5)} out tok  ` +
+        `${cents.toFixed(4).padStart(8)}¢`,
     );
+    printAnswer(answer);
+    console.log();
   }
 }
 
