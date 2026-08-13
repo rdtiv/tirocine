@@ -1,0 +1,111 @@
+// Part 6, Lab — Haiku vs Sonnet vs Opus.
+//
+// Run: npm run bench
+//
+// Runs the same three tasks against all three models and reports how long each
+// took, what it cost, and what it answered. The tasks get progressively harder
+// on purpose. The whole run costs well under a cent.
+//
+// What to look for:
+//   - On the easy task all three get it right. Compare time and price.
+//   - On the hard task, watch for a split. The correct answer is 18 minutes.
+//   - Watch output token counts on the hard task — bigger models spend more
+//     tokens reasoning before answering. That's what you're paying for.
+
+import Anthropic from '@anthropic-ai/sdk';
+import { textFrom } from './text.js';
+
+const client = new Anthropic();
+
+const MODELS = [
+  { id: 'claude-haiku-4-5-20251001', name: 'Haiku 4.5', input: 1, output: 5 },
+  { id: 'claude-sonnet-5', name: 'Sonnet 5', input: 2, output: 10 },
+  { id: 'claude-opus-5', name: 'Opus 5', input: 5, output: 25 },
+] as const;
+
+const TASKS = [
+  {
+    name: 'Easy — classify',
+    prompt:
+      'Classify the weather condition "light drizzle, 51F" as one of: ' +
+      'clear, wet, cold, severe. Reply with one word only.',
+  },
+  {
+    name: 'Medium — extract',
+    prompt:
+      'From this note, list every city mentioned, comma separated, nothing else: ' +
+      '"Flying Dallas to Denver Tuesday, then driving up to Boulder. ' +
+      'Weather in Denver looks rough but Fort Collins is clear."',
+  },
+  {
+    name: 'Hard — reason',
+    prompt:
+      'A tank holds 210 liters and starts with 30 liters. It fills at 12 L/min ' +
+      'and simultaneously drains at 4.5 L/min. After exactly 8 minutes the drain ' +
+      'is closed. At what time from the start does the tank overflow? ' +
+      'Give the answer in minutes.',
+  },
+];
+
+interface Result {
+  model: string;
+  task: string;
+  seconds: number;
+  outputTokens: number;
+  cents: number;
+  answer: string;
+}
+
+const results: Result[] = [];
+
+for (const task of TASKS) {
+  console.log(`\n=== ${task.name} ===`);
+
+  for (const model of MODELS) {
+    const started = Date.now();
+
+    const message = await client.messages.create({
+      model: model.id,
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: task.prompt }],
+    });
+
+    const seconds = (Date.now() - started) / 1000;
+    const cents =
+      ((message.usage.input_tokens / 1_000_000) * model.input +
+        (message.usage.output_tokens / 1_000_000) * model.output) *
+      100;
+
+    const answer = textFrom(message).replace(/\s+/g, ' ').trim();
+
+    results.push({
+      model: model.name,
+      task: task.name,
+      seconds,
+      outputTokens: message.usage.output_tokens,
+      cents,
+      answer,
+    });
+
+    console.log(
+      `${model.name.padEnd(10)} ${seconds.toFixed(1).padStart(5)}s  ` +
+        `${String(message.usage.output_tokens).padStart(5)} tok  ` +
+        `${cents.toFixed(4).padStart(8)}¢  ${answer.slice(0, 60)}`,
+    );
+  }
+}
+
+console.log('\n=== Totals across all three tasks ===');
+for (const model of MODELS) {
+  const mine = results.filter((r) => r.model === model.name);
+  const totalSeconds = mine.reduce((sum, r) => sum + r.seconds, 0);
+  const totalCents = mine.reduce((sum, r) => sum + r.cents, 0);
+
+  console.log(
+    `${model.name.padEnd(10)} ${totalSeconds.toFixed(1).padStart(5)}s  ` +
+      `${totalCents.toFixed(4).padStart(8)}¢  ` +
+      `(${((totalCents / 100) * 1000).toFixed(2)} dollars per 1000 runs)`,
+  );
+}
+
+console.log('\nThe correct answer to the hard task is 18 minutes.');

@@ -1,0 +1,31 @@
+{
+  "name": "weatherwise",
+  "version": "1.0.0",
+  "description": "A command-line weather assistant built on the Claude API. Companion code for \"Your First Project: A Claude-Powered Weather Assistant in TypeScript\".",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx --env-file=.env src/index.ts",
+    "models": "tsx --env-file=.env src/models.ts",
+    "chat": "tsx --env-file=.env src/chat.ts",
+    "truncate": "tsx --env-file=.env src/truncate.ts",
+    "bench": "tsx --env-file=.env src/bench.ts",
+    "weather": "tsx --env-file=.env src/weather-test.ts",
+    "parse": "tsx --env-file=.env src/parse-request.ts",
+    "agent": "tsx --env-file=.env src/agent.ts",
+    "assistant": "tsx --env-file=.env src/assistant.ts",
+    "assistant:streaming": "tsx --env-file=.env src/assistant-streaming.ts",
+    "stream": "tsx --env-file=.env src/stream.ts",
+    "injection": "tsx --env-file=.env src/injection.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
+  }
+}
