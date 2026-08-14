@@ -5,7 +5,7 @@ Learning to build on large language models, one project at a time.
 The first project is **weatherwise** — a command-line weather assistant built on
 the Claude API, taught from zero. Its walkthrough lives in `docs/`:
 
-1. Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md) *(stub)*
+1. Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md)
 2. [The TypeScript build](docs/typescript.md) — every script in `src/` is built here
 3. [The Python build](docs/python.md) — the same program again *(no companion code yet)*
 4. [The app](docs/app.md) — Next.js, the AI SDK, and Vercel *(stub)*
