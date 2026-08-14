@@ -1,0 +1,60 @@
+# The Python half of weatherwise. Lives at the repo root, next to package.json,
+# for one specific reason: usage.csv.
+#
+# src/usage.ts writes 'usage.csv' as a RELATIVE path, resolved against the
+# process's working directory. npm runs its scripts from the project root, so
+# that is where the ledger lands. If the Python lessons ran from inside
+# pyweather/, they would quietly create a SECOND usage.csv in there, and the
+# whole point of this document — one artifact, two languages — would evaporate.
+#
+# Same directory, same file. `uv run agent` and `npm run agent` append to it.
+
+[project]
+name = "pyweather"
+version = "0.1.0"
+description = "The weatherwise assistant, written a second time in Python"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.69",
+    "httpx>=0.28",
+    "pydantic>=2.11",
+    "python-dotenv>=1.1",
+]
+
+# Each lesson becomes a real command: `uv run agent`, not
+# `uv run --env-file ../.env python pyweather/agent.py`.
+#
+# The names deliberately match the npm scripts, so `npm run agent` and
+# `uv run agent` are the same lesson in the two languages. One exception:
+# assistant-streaming, because a colon is illegal in an entry-point name and
+# the npm side calls it `assistant:streaming`.
+[project.scripts]
+dev = "pyweather.main:main"
+models = "pyweather.models:main"
+chat = "pyweather.chat:main"
+truncate = "pyweather.truncate:main"
+bench = "pyweather.bench:main"
+usage = "pyweather.usage_report:main"
+weather = "pyweather.weather_test:main"
+parse = "pyweather.parse_request:main"
+agent = "pyweather.agent:main"
+assistant = "pyweather.assistant:main"
+assistant-streaming = "pyweather.assistant_streaming:main"
+stream = "pyweather.stream:main"
+injection = "pyweather.injection:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyweather"]
+
+# The Python equivalent of tsconfig.json's "strict": true. npm run typecheck
+# and npm run typecheck:py are the same gate, held to the same standard.
+[tool.pyright]
+include = ["pyweather"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+pythonVersion = "3.13"

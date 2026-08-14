@@ -1,7 +1,8 @@
 name: CI
 
-# Both gates are keyless — nothing here calls the Claude API — so this runs
-# safely on pull requests from forks without exposing any secret.
+# Every gate here is keyless — nothing calls the Claude API — so this runs
+# safely on pull requests from forks without exposing any secret. Adding the
+# Python half did not change that, and must not.
 on:
   push:
     branches: [main]
@@ -38,11 +39,25 @@ jobs:
 
       - run: npm ci
 
-      # Does the code compile under strict mode?
-      - name: typecheck
+      # uv installs the Python toolchain and the exact versions in uv.lock.
+      # The tutorial is written against 3.13, so pin it rather than inheriting
+      # whatever the runner image happens to ship.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: install Python dependencies
+        run: uv sync --locked
+
+      # Does the code compile under strict mode? Once per language.
+      - name: typecheck (TypeScript)
         run: npm run typecheck
 
-      # Does the tutorial still match the code? Rebuilds src/ from the
-      # document's own code blocks, compiles that, and diffs it back.
-      - name: verify docs match src/
+      - name: typecheck (Python)
+        run: npm run typecheck:py
+
+      # Do the tutorials still match the code? Rebuilds src/ and pyweather/
+      # from each document's own code blocks, typechecks that, and diffs it
+      # back.
+      - name: verify docs match the code
         run: npm run verify:docs

@@ -2,3 +2,9 @@ node_modules/
 .env
 usage.csv
 .DS_Store
+
+# Python. uv.lock is committed, the same way package-lock.json is —
+# a lockfile is the point.
+.venv/
+__pycache__/
+*.pyc
