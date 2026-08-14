@@ -1192,6 +1192,13 @@ class WeatherApiResponse(BaseModel):
 
 
 def get_weather(location: str) -> Weather:
+    # The model chooses this argument, so treat it as untrusted input like any
+    # other. An empty string would otherwise become a real HTTP lookup for
+    # nothing. Part 9's tool loop turns this into an is_error tool result, so
+    # Claude sees a usable complaint instead of a confusing 400.
+    if not location:
+        raise ValueError("get_weather() requires a non-empty location")
+
     api_key = os.environ.get("WEATHER_API_KEY")
     if not api_key:
         raise RuntimeError("WEATHER_API_KEY is not set in .env")
