@@ -1,6 +1,11 @@
 # weatherwise
 
-Companion code for **Your First Project: A Claude-Powered Weather Assistant in TypeScript** (Windows edition).
+Companion code for the **weatherwise** series, in `docs/`:
+
+1. Setup — [Windows](docs/weatherwise-setup-windows.md) · [macOS](docs/weatherwise-setup-mac.md) *(stub)*
+2. [The TypeScript build](docs/weatherwise-typescript.md) — every script in `src/` is built here
+3. [The Python build](docs/weatherwise-python.md) — the same program again *(no companion code yet)*
+4. [The app](docs/weatherwise-app.md) — Next.js, the AI SDK, and Vercel *(stub)*
 
 A command-line weather assistant built on the Claude API. Every script here is a
 single runnable lesson — you can run them in any order, but they're numbered by
