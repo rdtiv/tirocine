@@ -1,7 +1,7 @@
 {
   "name": "weatherwise",
   "version": "1.0.0",
-  "description": "A command-line weather assistant built on the Claude API. Companion code for \"Your First Project: A Claude-Powered Weather Assistant in TypeScript\".",
+  "description": "A command-line weather assistant built on the Claude API. Companion code for the weatherwise tutorial series, TypeScript build (see also pyweather/ for the Python build).",
   "type": "module",
   "private": true,
   "scripts": {

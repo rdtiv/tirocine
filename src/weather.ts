@@ -36,6 +36,12 @@ interface WeatherApiResponse {
 }
 
 export async function getWeather(location: string): Promise<Weather> {
+  // A caller that cast an untyped tool input (see agent.ts's runTool) can
+  // hand this an empty string or `undefined` at runtime even though the type
+  // signature promises `string`. Fail before the request — otherwise this
+  // becomes a real HTTP lookup for the literal city "undefined".
+  if (!location) throw new Error('getWeather() requires a non-empty location');
+
   const apiKey = process.env.WEATHER_API_KEY;
   if (!apiKey) throw new Error('WEATHER_API_KEY is not set in .env');
 
