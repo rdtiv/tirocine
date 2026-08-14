@@ -68,6 +68,17 @@ function splitCsvLine(line: string): string[] {
 const lines = readFileSync(FILE, 'utf8').replace(/^﻿/, '').trim().split('\n');
 const headers = splitCsvLine(lines[0]!);
 
+/** Number(''), which an empty cell produces, is 0 — that part is wanted.
+ *  Number('abc') is NaN, which is not: NaN + anything is NaN, so one cell
+ *  somebody retyped in Excel turns the WHOLE total into `NaN`. That is the
+ *  same failure this file's header guard exists to prevent — a report that
+ *  is confidently, silently wrong — so a junk cell contributes nothing
+ *  instead of destroying every number below it. */
+const num = (text: string): number => {
+  const n = Number(text);
+  return Number.isFinite(n) ? n : 0;
+};
+
 const rows: Row[] = lines.slice(1).map((line) => {
   const cells = splitCsvLine(line);
   const get = (name: string) => cells[headers.indexOf(name)] ?? '';
@@ -75,13 +86,13 @@ const rows: Row[] = lines.slice(1).map((line) => {
     run_id: get('run_id'),
     script: get('script'),
     model: get('model'),
-    input_tokens: Number(get('input_tokens')),
-    cache_read: Number(get('cache_read')),
-    cache_write: Number(get('cache_write')),
-    thinking_tokens: Number(get('thinking_tokens')),
-    output_tokens: Number(get('output_tokens')),
-    context_tokens: Number(get('context_tokens')),
-    cost_usd: Number(get('cost_usd')),
+    input_tokens: num(get('input_tokens')),
+    cache_read: num(get('cache_read')),
+    cache_write: num(get('cache_write')),
+    thinking_tokens: num(get('thinking_tokens')),
+    output_tokens: num(get('output_tokens')),
+    context_tokens: num(get('context_tokens')),
+    cost_usd: num(get('cost_usd')),
   };
 });
 
