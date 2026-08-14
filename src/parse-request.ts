@@ -17,6 +17,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { MODEL } from './config.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
 
@@ -39,6 +40,8 @@ const message = await client.messages.parse({
   messages: [{ role: 'user', content: question }],
   output_config: { format: zodOutputFormat(WeatherRequest) },
 });
+
+logCall('parse', MODEL, question, message);
 
 // Refusals and truncation still break the shape. stop_reason of `refusal` or
 // `max_tokens` returns something that won't match. That's what this guards.

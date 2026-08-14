@@ -24,6 +24,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getWeather } from './weather.js';
 import { textFrom } from './text.js';
 import { MODEL } from './config.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
 
@@ -60,9 +61,9 @@ async function runTool(name: string, input: unknown): Promise<string> {
   return JSON.stringify(weather);
 }
 
-const messages: Anthropic.MessageParam[] = [
-  { role: 'user', content: 'Do I need a jacket in Chicago right now?' },
-];
+const question = 'Do I need a jacket in Chicago right now?';
+
+const messages: Anthropic.MessageParam[] = [{ role: 'user', content: question }];
 
 let response = await client.messages.create({
   model: MODEL,
@@ -71,6 +72,11 @@ let response = await client.messages.create({
   tools,
   messages,
 });
+
+// One question costs TWO calls once a tool is involved — you'll see both rows
+// in usage.csv, and the second one's input is bigger because it carries the
+// first response plus the tool result.
+logCall('agent', MODEL, question, response);
 
 while (response.stop_reason === 'tool_use') {
   messages.push({ role: 'assistant', content: response.content });
@@ -113,6 +119,8 @@ while (response.stop_reason === 'tool_use') {
     tools,
     messages,
   });
+
+  logCall('agent', MODEL, question, response);
 }
 
 console.log(textFrom(response));

@@ -1,5 +1,5 @@
 // Part 4 — Conversation: you own the memory.
-// Part 6 — plus the logCost() call added at the end of Part 6.
+// Part 6 — plus the logCall() ledger added at the end of Part 6.
 //
 // Run: npm run chat
 //
@@ -7,13 +7,17 @@
 // of it every turn. Tell it your name, then ask what your name is. It knows —
 // not because it remembered, but because you re-sent the transcript.
 //
-// Watch the [cost] line: input tokens climb every single turn. That climb is
-// this Part's lesson showing up as money. Part 11 (caching) is the fix.
+// Watch the [usage] line: `in` and `context` climb every single turn, by
+// roughly the previous turn's output plus whatever you just typed. That climb
+// is this Part's lesson showing up as money. Part 11 (caching) is the fix.
+//
+// Every turn is also appended to usage.csv — run `npm run usage` afterwards,
+// or open the file in Excel and add up the cost_usd column yourself.
 
 import Anthropic from '@anthropic-ai/sdk';
 import * as readline from 'node:readline/promises';
 import { textFrom } from './text.js';
-import { logCost } from './cost.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
 const messages: Anthropic.MessageParam[] = [];
@@ -44,7 +48,7 @@ while (true) {
     messages,
   });
 
-  logCost('claude-sonnet-5', response.usage);
+  logCall('chat', 'claude-sonnet-5', input, response);
 
   // Note: there is no try/catch around this call yet. If your API key is wrong,
   // this crashes with a stack trace. That's deliberate — Part 12 covers error

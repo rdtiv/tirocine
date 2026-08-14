@@ -10,6 +10,7 @@
     "chat": "tsx --env-file=.env src/chat.ts",
     "truncate": "tsx --env-file=.env src/truncate.ts",
     "bench": "tsx --env-file=.env src/bench.ts",
+    "usage": "tsx src/usage-report.ts",
     "weather": "tsx --env-file=.env src/weather-test.ts",
     "parse": "tsx --env-file=.env src/parse-request.ts",
     "agent": "tsx --env-file=.env src/agent.ts",

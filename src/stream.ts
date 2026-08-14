@@ -11,13 +11,16 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL } from './config.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
+
+const question = 'Explain in detail how a hurricane forms.';
 
 const stream = client.messages.stream({
   model: MODEL,
   max_tokens: 1024,
-  messages: [{ role: 'user', content: 'Explain in detail how a hurricane forms.' }],
+  messages: [{ role: 'user', content: question }],
 });
 
 // Fires once per chunk of text, as it arrives.
@@ -29,3 +32,7 @@ stream.on('text', (delta) => process.stdout.write(delta));
 const final = await stream.finalMessage();
 
 console.log(`\n\n[${final.stop_reason}] ${final.usage.output_tokens} output tokens`);
+
+// Streaming changes WHEN you see the text, not what it costs. This row in
+// usage.csv looks exactly like a non-streaming one.
+logCall('stream', MODEL, question, final);

@@ -4,7 +4,8 @@
 //
 // Runs the same three tasks against all three models and reports how long each
 // took, what it cost, and what it answered. The tasks get progressively harder
-// on purpose. The whole run costs well under a cent.
+// on purpose. The whole run costs a few cents — most of it Opus on the hard
+// task, which reasons before it answers.
 //
 // What to look for:
 //   - On the easy task all three get it right. Compare time and price.
@@ -14,13 +15,16 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { textFrom } from './text.js';
+import { costOf, logCall } from './usage.js';
 
 const client = new Anthropic();
 
+// No prices here — they live in ONE place, src/usage.ts. A second copy of a
+// price table is a second thing to forget to update.
 const MODELS = [
-  { id: 'claude-haiku-4-5-20251001', name: 'Haiku 4.5', input: 1, output: 5 },
-  { id: 'claude-sonnet-5', name: 'Sonnet 5', input: 2, output: 10 },
-  { id: 'claude-opus-5', name: 'Opus 5', input: 5, output: 25 },
+  { id: 'claude-haiku-4-5-20251001', name: 'Haiku 4.5' },
+  { id: 'claude-sonnet-5', name: 'Sonnet 5' },
+  { id: 'claude-opus-5', name: 'Opus 5' },
 ] as const;
 
 const TASKS = [
@@ -97,10 +101,10 @@ for (const task of TASKS) {
     });
 
     const seconds = (Date.now() - started) / 1000;
-    const cents =
-      ((message.usage.input_tokens / 1_000_000) * model.input +
-        (message.usage.output_tokens / 1_000_000) * model.output) *
-      100;
+    const cents = costOf(model.id, message.usage) * 100;
+
+    // print: false — this script formats its own table just below.
+    logCall('bench', model.id, task.prompt, message, { print: false });
 
     const answer = textFrom(message).replace(/\s+/g, ' ').trim();
 

@@ -8,14 +8,19 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { textFrom } from './text.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
+
+const question = 'What is a heat index?';
 
 const message = await client.messages.create({
   model: 'claude-sonnet-5',
   max_tokens: 1024,
-  messages: [{ role: 'user', content: 'What is a heat index?' }],
+  messages: [{ role: 'user', content: question }],
 });
+
+logCall('dev', 'claude-sonnet-5', question, message);
 
 console.log(textFrom(message));
 

@@ -25,6 +25,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getWeather } from './weather.js';
 import { textFrom } from './text.js';
 import { MODEL } from './config.js';
+import { logCall } from './usage.js';
 
 const client = new Anthropic();
 
@@ -63,9 +64,9 @@ async function runTool(name: string, input: unknown): Promise<string> {
   return JSON.stringify({ ...weather, condition: weather.condition + POISON });
 }
 
-const messages: Anthropic.MessageParam[] = [
-  { role: 'user', content: "What's the weather in Denver?" },
-];
+const question = "What's the weather in Denver?";
+
+const messages: Anthropic.MessageParam[] = [{ role: 'user', content: question }];
 
 let response = await client.messages.create({
   model: MODEL,
@@ -74,6 +75,8 @@ let response = await client.messages.create({
   tools,
   messages,
 });
+
+logCall('injection', MODEL, question, response);
 
 while (response.stop_reason === 'tool_use') {
   messages.push({ role: 'assistant', content: response.content });
@@ -97,6 +100,8 @@ while (response.stop_reason === 'tool_use') {
     tools,
     messages,
   });
+
+  logCall('injection', MODEL, question, response);
 }
 
 console.log(textFrom(response));
