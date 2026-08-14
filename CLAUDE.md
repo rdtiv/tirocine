@@ -5,13 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 This repository is **tirocine**. Its first project is **weatherwise**, whose
-tutorial series lives in `docs/`. `src/` is
-built entirely by `docs/typescript.md`; the setup, Python, and app
-documents have no code here yet. It is a tutorial, not an application: every
-file in `src/` is a single, independently runnable lesson, numbered by
-tutorial Part. There is no shared entry point — each script is a standalone
-`.ts` file run directly via `tsx`, not imported into a larger program (except
-for the small set of shared helpers noted below).
+tutorial series lives in `docs/`. Two documents have companion code: `src/` is
+built entirely by `docs/typescript.md`, and `pyweather/` is built entirely by
+`docs/python.md`. The setup and app documents have no code here yet.
+
+It is a tutorial, not an application: every file in `src/` and `pyweather/` is
+a single, independently runnable lesson, numbered by tutorial Part. There is no
+shared entry point — each script is standalone, not imported into a larger
+program (except for the small set of shared helpers noted below).
+
+**`pyweather/` is the same program as `src/`, written a second time.** The
+Python document is not a Python tutorial and introduces no new concepts; its
+entire value is the comparison, so `pyweather/x.py` should stay recognisably
+the same lesson as its `src/x.ts` counterpart. When you change one side, ask
+whether the other should change too. The one thing that is deliberately *not*
+mirrored is `pyweather/usage.py`, which is byte-compatible with `src/usage.ts`
+by necessity — see "The shared ledger" below.
 
 Because this is tutorial code, prioritize clarity and matching the existing
 comment style over typical "production" abstraction. Comments in this repo
@@ -36,14 +45,43 @@ npm run assistant:streaming         # src/assistant-streaming.ts — Part 10.3/1
 npm run models                       # src/models.ts — lists model IDs available to the API key
 ```
 
-There is no test suite and no lint script. `npm run typecheck` is the only
-correctness gate — run it after editing any `src/*.ts` file.
+The Python half runs the same lessons through `uv`, from the **repo root**, not
+from inside `pyweather/`:
 
-All runnable scripts load `.env` via `--env-file=.env` (set from
-`.env.example`; requires `ANTHROPIC_API_KEY` and `WEATHER_API_KEY`). Scripts
-other than `typecheck`, `weather`, and (partially) `parse`/`models` make real,
-billed API calls — keep that in mind before running them repeatedly in a
-loop.
+```bash
+npm run typecheck:py          # pyright, strict — run this after any pyweather/ edit
+uv run dev                    # pyweather/main.py       ↔ npm run dev
+uv run chat                   # pyweather/chat.py       ↔ npm run chat
+uv run truncate               # pyweather/truncate.py
+uv run bench                  # pyweather/bench.py
+uv run usage                  # pyweather/usage_report.py — reads the SAME usage.csv
+uv run weather                # pyweather/weather_test.py — no AI, keyless
+uv run parse                  # pyweather/parse_request.py
+uv run agent                  # pyweather/agent.py
+uv run assistant              # pyweather/assistant.py
+uv run injection              # pyweather/injection.py
+uv run stream                 # pyweather/stream.py
+uv run assistant-streaming    # pyweather/assistant_streaming.py
+uv run models                 # pyweather/models.py
+```
+
+Those names are `[project.scripts]` entry points in the root `pyproject.toml`,
+which is why every lesson module needs a `main()`. They deliberately match the
+npm script names, so `npm run agent` and `uv run agent` are the same lesson in
+the two languages. The one exception is `assistant-streaming`, because a colon
+is illegal in an entry-point name.
+
+There is no test suite and no lint script. The correctness gates are
+`npm run typecheck` (TypeScript), `npm run typecheck:py` (Python), and
+`npm run verify:docs` (both documents against both trees). All three are
+keyless. Run the relevant ones after any edit.
+
+TypeScript scripts load `.env` via `--env-file=.env`; the Python side calls
+`load_dotenv()` once in `pyweather/__init__.py` instead. Both read the same
+root `.env` (set from `.env.example`; requires `ANTHROPIC_API_KEY` and
+`WEATHER_API_KEY`). Everything except the typecheck gates, `weather`, and
+(partially) `parse`/`models` makes real, billed API calls — keep that in mind
+before running them repeatedly in a loop.
 
 ## Architecture
 
@@ -57,18 +95,30 @@ loop.
   onward. `index.ts`, `chat.ts`, and `truncate.ts` hardcode the model ID
   intentionally (they exist to show a single call) — don't "fix" those to
   import `MODEL`.
-- `src/cost.ts` — `logCost(model, usage)` plus a hardcoded USD/million-token
-  `PRICES` table. Prices are a point-in-time snapshot (see the comment date
-  in the file) — if pricing looks wrong, verify against
+- `src/usage.ts` — `logCall(script, model, prompt, message)`, `costOf(...)`,
+  and a hardcoded USD/million-token `PRICES` table. Every Claude call appends
+  one row to `usage.csv`. Prices are a point-in-time snapshot (see the comment
+  date in the file) — if pricing looks wrong, verify against
   platform.claude.com/docs rather than assuming the table is stale and
-  silently "fixing" it without checking.
+  silently "fixing" it without checking. There is no `src/cost.ts`.
+- `src/usage-report.ts` — reads `usage.csv` back and totals it (`npm run
+  usage`). Looks columns up **by header name**, not by position.
 - `src/weather.ts` — `getWeather(location)` and two interfaces:
   `WeatherApiResponse` (WeatherAPI.com's wire shape) kept deliberately
   separate from `Weather` (this program's shape). Preserve that separation in
   any edits — it's the Part 7 lesson, not incidental structure.
 
+The Python side has the same four helpers under the same names:
+`pyweather/text.py` (`text_from`), `pyweather/config.py` (`MODEL`),
+`pyweather/usage.py` (`log_call`, `cost_of`, `PRICES`), `pyweather/weather.py`
+(`get_weather`, plus the same deliberate `WeatherApiResponse` / `Weather`
+split — pydantic models there, which unlike TypeScript interfaces actually
+validate at runtime). `pyweather/__init__.py` is a fifth with no TypeScript
+counterpart: it calls `load_dotenv()` once for the whole package.
+
 **The tool-loop pattern** (`agent.ts`, `assistant.ts`,
-`assistant-streaming.ts`, `injection.ts` all implement variants of this):
+`assistant-streaming.ts`, `injection.ts` — and their `pyweather/` counterparts
+— all implement variants of this):
 
 1. Call `messages.create` (or `.stream`) with a `tools` array.
 2. If `stop_reason === 'tool_use'`, push the assistant's response blocks
@@ -104,8 +154,41 @@ files are `.ts` (e.g. `import { getWeather } from './weather.js'`). This is
 required by `moduleResolution: NodeNext` in `tsconfig.json` — the extension
 refers to compiled output, not source. Keep this pattern in any new files.
 
-**Model IDs and pricing are pinned, not evergreen.** `src/config.ts` and
-`src/bench.ts` hardcode model IDs; `src/cost.ts` hardcodes prices. If a
-script fails with `404 not_found_error`, or pricing looks off, run `npm run
-models` to check what the live API actually returns rather than trusting
-this repo or the tutorial document.
+`pyweather/` uses relative package imports instead (`from .weather import
+get_weather`), because it is a real package rather than a folder of scripts.
+Keep that pattern too — an absolute `from pyweather.weather import ...` would
+also work but reads as if the lessons were importing some third-party library.
+
+**The shared ledger.** `pyweather/usage.py` appends to the **same
+`usage.csv`** as `src/usage.ts`, so `npm run usage` and `uv run usage` both
+total rows written by both languages. The `script` column distinguishes them —
+`log_call` prefixes the Python ones with `py:`. This is the Python document's
+thesis made concrete, so treat the CSV as a contract:
+
+- The 15 `COLUMNS` and their order must stay identical in both writers. The
+  header guard in each `logCall`/`log_call` throws rather than appending under
+  a mismatched header — that check is the enforcement, don't weaken it.
+- Only `prompt` and `reply` are quoted; the other 13 columns are raw.
+- One UTF-8 BOM, written only when the file is created. LF line endings.
+  `usage.py` opens with `newline=""` for exactly this reason — Python would
+  otherwise write CRLF on Windows and break `usage-report.ts`'s line splitting.
+- `usage.py` resolves the ledger path from `__file__`, not the working
+  directory, because `uv run` (unlike npm) does not guarantee the repo root.
+  A ledger that silently splits in two defeats the whole lesson.
+
+**Model IDs and pricing are pinned, not evergreen.** `src/config.ts`,
+`src/bench.ts`, `pyweather/config.py`, and `pyweather/bench.py` hardcode model
+IDs; `src/usage.ts` and `pyweather/usage.py` hardcode prices. If a script fails
+with `404 not_found_error`, or pricing looks off, run `npm run models` to check
+what the live API actually returns rather than trusting this repo or the
+tutorial document.
+
+**`verify:docs` covers both documents.** `scripts/check-docs.ts` holds a
+`LANGUAGES` table: everything language-specific (fence names, marker comment
+syntax, comment stripping, how to typecheck, which directory) lives there, and
+the four gates — compile, ordering, diff, coverage — are shared. Adding a third
+language means adding a row, not a branch. Note the Python comment stripper
+also drops **docstrings** that sit alone on their own lines, because Python
+puts its teaching headers in docstrings where TypeScript puts them in `//`
+comments; without that the document would have to reproduce every docstring
+verbatim.
