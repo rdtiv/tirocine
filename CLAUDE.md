@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Dual-driver namespaces
+
+Grok sessions use `.grok/` and `/xmission`. Claude sessions use this file and
+`/mission`. The two must not share worktree paths, branch prefixes, or ports.
+
+| Driver | Command | Worktrees | Branches | Dev port |
+|--------|---------|-----------|----------|----------|
+| Claude Code | `/mission` | `.claude/worktrees/` | house scheme (no `x/` prefix) | `3000 + (ref % 1000)` → **3000–3999** |
+| Grok Build | `/xmission` | `.grok/worktrees/` | `x/<type>/<slug>` | `4000 + (ref % 1000)` → **4000–4999** |
+
+- Do **not** create, edit, or decommission the other driver's worktrees.
+- Feature commits never happen on the main checkout.
+- Operator owns the merge. Do not post `@claude` on PRs unprompted.
+
 ## What this repo is
 
 This repository is **tirocine**. Its first project is **weatherwise**, whose
