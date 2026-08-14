@@ -3,17 +3,37 @@
 [![CI](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml/badge.svg)](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+A Roman army recruit was a **tiro** — enlisted, but not yet blooded. The word
+carried no insult; it simply meant *new*, and stood in contrast to the
+**veteranus**, who had been through a campaign.
+
+Latin built abstract nouns out of roles with the suffix **-cinium**. From *latro*,
+a bandit, came *latrocinium*, banditry. From *patronus*, a patron, came
+*patrocinium*, patronage. And from *tiro* came **tirocinium**: the condition of
+being a recruit, and so a soldier's first campaign. It widened to mean any
+apprenticeship, any first attempt at a hard thing — William Cowper used it as the
+title of a poem about schooling in 1785. It survives in English as **tyro**, a
+beginner, though it has mostly fallen out of use. **tirocine** is just a shorter
+form to type.
+
+The name is the whole idea. **This is a first campaign** — not a portfolio, not a
+framework. Somewhere to be new at something and have that be the point.
+
+---
+
+## What this is
+
 **Learning to build on large language models, one project at a time.**
 
 Written for someone who has not shipped code before. It assumes you can use a
-computer and nothing else — no prior JavaScript, no prior API work, no prior
-idea of what a token is.
+computer and nothing else — no prior JavaScript, no prior API work, no prior idea
+of what a token is.
 
 The first project is **weatherwise**: a command-line assistant that answers
 plain-English weather questions. It starts as ten lines and ends as a program
 that waits for you, looks up live weather when it needs to, streams its answers
-back as it thinks, caches its prompts to cut the bill, and keeps a running
-ledger of what it spent.
+back as it thinks, caches its prompts to cut the bill, and keeps a running ledger
+of what it spent.
 
 ---
 
@@ -170,27 +190,6 @@ names the exact line.
 
 Corrections to the tutorial are as welcome as corrections to the code. A
 sentence that misleads a beginner is a bug.
-
----
-
-## Why "tirocine"
-
-A Roman army recruit was a **tiro** — a soldier who had enlisted but not yet
-fought. The word carried no insult. It simply meant *new*, and it stood in
-contrast to the **veteranus**, the one who had been through a campaign.
-
-Latin built abstract nouns from roles with the suffix **-cinium**: from *latro*,
-a bandit, came *latrocinium*, banditry; from *patronus*, a patron, came
-*patrocinium*, patronage. From *tiro* came **tirocinium** — the condition of
-being a recruit, and so a soldier's first campaign. It widened to mean any
-apprenticeship or first attempt at a difficult thing; William Cowper used it as
-the title of a poem about schooling in 1785. The word survives in English as
-**tyro**, a beginner, though it has mostly fallen out of use.
-
-**tirocine** is a clipped form — not a real Latin word, just a shorter one to
-type. The original meaning is exactly right: this is a first campaign. Not a
-portfolio, not a framework. Somewhere to be new at something and have that be
-the point.
 
 ---
 

@@ -183,6 +183,18 @@ Learn Windows-native first. Add WSL later, deliberately, when you hit a specific
 
 ## 0.9 Create the project
 
+> **You're going to build this yourself, file by file — and that's deliberate.**
+> Part 1 of the walkthrough explains why typing beats pasting, and it is the
+> single most important habit in this whole guide.
+>
+> The finished version of everything you're about to write lives at
+> [github.com/rdtiv/tirocine](https://github.com/rdtiv/tirocine). It's there for
+> two things: to compare against when something won't work, and to read
+> afterwards. **Don't clone it into the folder you're about to create** — if you
+> want a copy to look at, put it somewhere separate, like `C:\dev\tirocine` next to your
+> own `C:\dev\weatherwise`.
+
+
 Every project you ever build goes in one place: `C:\dev`, straight off the drive root. Three reasons, and all three will bite you otherwise:
 
 - **Short paths.** Windows has a 260-character limit on file paths. `node_modules` nests deeply, and a project buried under `C:\Users\YourName\Documents\...` can blow past that limit and produce install errors that look like nothing else. `C:\dev\weatherwise` leaves you plenty of room.

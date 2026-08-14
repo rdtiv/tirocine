@@ -168,6 +168,18 @@ Turn on two things day one:
 
 ## 0.8 Create the project
 
+> **You're going to build this yourself, file by file — and that's deliberate.**
+> Part 1 of the walkthrough explains why typing beats pasting, and it is the
+> single most important habit in this whole guide.
+>
+> The finished version of everything you're about to write lives at
+> [github.com/rdtiv/tirocine](https://github.com/rdtiv/tirocine). It's there for
+> two things: to compare against when something won't work, and to read
+> afterwards. **Don't clone it into the folder you're about to create** — if you
+> want a copy to look at, put it somewhere separate, like `~/dev/tirocine` next to your
+> own `~/dev/weatherwise`.
+
+
 Every project you ever build goes in one place: `~/dev`. Not Desktop, not Documents — both of those are usually synced to iCloud, and a sync service reaching into a live `node_modules` folder or a `.git` directory causes strange, hard-to-diagnose breakage. `~/dev` is short to type, out of the way of sync, and means you always know where your code is.
 
 ```bash
