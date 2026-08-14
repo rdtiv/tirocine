@@ -1,155 +1,175 @@
 # tirocine
 
 [![CI](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml/badge.svg)](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Learning to build on large language models, one project at a time.
+**Learning to build on large language models, one project at a time.**
 
-The first project is **weatherwise** — a command-line weather assistant built on
-the Claude API, taught from zero. Its walkthrough lives in `docs/`:
+Written for someone who has not shipped code before. It assumes you can use a
+computer and nothing else — no prior JavaScript, no prior API work, no prior
+idea of what a token is.
 
-1. Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md)
-2. [The TypeScript build](docs/typescript.md) — every script in `src/` is built here
-3. [The Python build](docs/python.md) — the same program again *(no companion code yet)*
-4. [The app](docs/app.md) — Next.js, the AI SDK, and Vercel *(stub)*
-
-A command-line weather assistant built on the Claude API. Every script here is a
-single runnable lesson — you can run them in any order, but they're numbered by
-tutorial Part so you can follow along.
+The first project is **weatherwise**: a command-line assistant that answers
+plain-English weather questions. It starts as ten lines and ends as a program
+that waits for you, looks up live weather when it needs to, streams its answers
+back as it thinks, caches its prompts to cut the bill, and keeps a running
+ledger of what it spent.
 
 ---
 
-## Setup
+## The tutorial
 
-You need **Node.js 20.6 or newer** (`node --version` to check — 20.6 is when `--env-file` arrived) and two API keys.
+| | Document | Status |
+|---|---|---|
+| **1** | Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md) | Complete |
+| **2** | [The TypeScript build](docs/typescript.md) | Complete — builds everything in `src/` |
+| **3** | [The Python build](docs/python.md) | Draft — no companion code yet |
+| **4** | [The app](docs/app.md) — Next.js, the AI SDK, Vercel | Outline only |
 
-```powershell
+Documents 3 and 4 state their own gaps at the top. Nothing here pretends to be
+finished when it isn't.
+
+Start at **1**, then **2**. Everything in `src/` is built by document 2, in
+order, one file per lesson.
+
+---
+
+## Quick start
+
+You need **Node.js 20.6 or newer** — 20.6 is when `--env-file` arrived, and
+every script here uses it. Check with `node --version`.
+
+```bash
 git clone https://github.com/rdtiv/tirocine.git
 cd tirocine
 npm install
-copy .env.example .env
+cp .env.example .env        # on Windows: copy .env.example .env
 ```
 
-On macOS or Linux, the last line is `cp .env.example .env`.
+Then open `.env` and fill in two keys:
 
-Then open `.env` and fill in both values:
-
-| Variable | Where to get it | Cost |
+| Variable | Where | Cost |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | [platform.claude.com](https://platform.claude.com) → API keys | Pay as you go. Everything in this repo costs well under a dollar total. |
-| `WEATHER_API_KEY` | [weatherapi.com](https://www.weatherapi.com) → sign up | Free tier, no card required. |
+| `ANTHROPIC_API_KEY` | [platform.claude.com](https://platform.claude.com) → API keys | Pay as you go. Everything here costs well under a dollar in total. |
+| `WEATHER_API_KEY` | [weatherapi.com](https://www.weatherapi.com) | Free tier, no card. |
 
-`.env` is in `.gitignore`. It will not be committed. Keep it that way.
+`.env` is gitignored and will not be committed. Keep it that way.
 
-Verify your setup before anything else:
+Then, in order — each of these tells you something before you spend anything:
 
 ```bash
-npm run typecheck   # no API key needed — proves the code compiles
-npm run models      # needs ANTHROPIC_API_KEY — lists model IDs your key can use
+npm run typecheck   # no key needed: proves the code compiles
+npm run models      # lists the model IDs your key can actually use
 npm run dev         # your first Claude call
 npm run usage       # what that call just cost you
 ```
 
-### If a model ID doesn't work
-
-`src/config.ts` and `src/bench.ts` hardcode model IDs. Model IDs change. If you
-get a `404 not_found_error`, run `npm run models` and update them to whatever
-your account actually offers. Don't trust a document over a live API.
+> **If a script fails with `404 not_found_error`,** a model ID has moved.
+> `src/config.ts` holds the one most scripts use; `src/usage.ts` and
+> `src/bench.ts` name all three for pricing and comparison; and `index.ts`,
+> `chat.ts`, and `truncate.ts` hardcode one deliberately, because they exist to
+> show a single call. Run `npm run models` and update what you find. Don't trust
+> a document over a live API — including this one.
 
 ---
 
-## The scripts, in tutorial order
+## Two things that make this different
+
+### You can see what you spend
+
+An API key gets you no dashboard. So every call in every script appends a row to
+`usage.csv` — fifteen columns you can open in Excel and add up:
+
+- **when and what** — `timestamp`, `run_id`, `script`, `model`, `message_id`
+- **what went in** — `input_tokens`, `cache_read`, `cache_write`
+- **what came back** — `output_tokens`, `thinking_tokens`, `stop_reason`
+- **what it cost** — `context_tokens`, `cost_usd`
+- **which turn it was** — `prompt` and `reply`, first 40 characters only
+
+`npm run usage` totals it — by model, by session, and by what caching saved.
+Three details most tutorials skip:
+
+- **The cost formula has four terms, not two.** Uncached input, cache writes at
+  1.25×, cache reads at 0.1×, output. The obvious two-term version is correct
+  right up until you enable caching, then it silently under-reports.
+- **`context_tokens` is the number nobody shows you** — the whole prompt you
+  resend each turn. Once caching is on, `input_tokens` is only the *uncached
+  remainder*, so budgeting off it understates spend badly.
+- **Token counts are recorded; prices are applied when you read.** Prices move.
+  The tokens are the durable record.
+
+### The tutorial cannot drift from the code
+
+`npm run verify:docs` rebuilds `src/` **from the tutorial's own code blocks**,
+compiles that, and diffs it back. If a code block and the file it teaches ever
+disagree, CI fails.
+
+It checks four things: that the document's code compiles (including the earlier
+version of any file built in stages), that no edit instruction tells you to make
+a change already present, that every finished listing matches `src/` exactly,
+and that nothing in `src/` is left unexplained.
+
+This exists because it caught real bugs — a step that said "add the import" and
+never showed it, three instructions to add code that was already there, and a
+listing pointing at the wrong endpoint.
+
+---
+
+## The scripts
 
 | Command | File | Part | What it teaches |
 |---|---|---|---|
-| `npm run dev` | `src/index.ts` | 2–3 | Your first API call. `messages.create`, and why `textFrom()` exists — content is an array of blocks, not a string. |
-| `npm run chat` | `src/chat.ts` | 4, 6 | The API is stateless. **You** own the conversation history. Prints tokens and cost per turn, and appends every call to `usage.csv`. |
-| `npm run truncate` | `src/truncate.ts` | 5 | `max_tokens: 30` cuts the answer off mid-sentence. `stop_reason` tells you it happened — check it. |
-| `npm run bench` | `src/bench.ts` | 6 | Haiku vs Sonnet vs Opus on three tasks of rising difficulty. Time, cost, and quality, side by side. |
-| `npm run usage` | `src/usage-report.ts` | 6 | Reads `usage.csv` and totals it — spend by model, by session, and what caching saved. No API key needed. |
+| `npm run dev` | `src/index.ts` | 2–3 | Your first API call, and why `content` is an array of blocks rather than a string. |
+| `npm run chat` | `src/chat.ts` | 4, 6 | The API is stateless. **You** own the conversation history — and pay to resend it every turn. |
+| `npm run truncate` | `src/truncate.ts` | 5 | `max_tokens: 30` cuts the answer off mid-sentence. `stop_reason` is how you find out. |
+| `npm run bench` | `src/bench.ts` | 6 | Haiku vs Sonnet vs Opus on three tasks of rising difficulty. Time, cost, and quality side by side. |
+| `npm run usage` | `src/usage-report.ts` | 6 | Reads `usage.csv` and totals it. No API key needed. |
 | `npm run weather` | `src/weather-test.ts` | 7 | `fetch`, `await`, and `response.ok`. No AI in this one at all. |
-| `npm run parse` | `src/parse-request.ts` | 8 | Structured output. `messages.parse()` + `zodOutputFormat()` returns validated, typed data. Stop parsing prose. |
-| `npm run agent` | `src/agent.ts` | 9 | Tools. The model requests; **your code executes**. The full tool loop, hand-written. |
-| `npm run assistant` | `src/assistant.ts` | 9 | The finished project — Part 4's chat loop with Part 9's tool loop inside it. |
-| `npm run injection` | `src/injection.ts` | 9 | Prompt injection. A tool result carries instructions. Find out if your program obeys a stranger. |
-| `npm run stream` | `src/stream.ts` | 10 | `messages.stream()` and `.on('text')`. Same tokens, same cost — it just stops feeling broken. |
-| `npm run assistant:streaming` | `src/assistant-streaming.ts` | 10.3, 11, 12 | The assistant, streaming, with prompt caching and error handling. |
-| `npm run models` | `src/models.ts` | — | Lists every model ID your key can use. Bonus, not in the tutorial. |
-| `npm run typecheck` | — | — | Compiles everything without running it. No API key needed. |
-| `npm run verify:docs` | `scripts/check-docs.ts` | — | Repo infrastructure. Rebuilds `src/` from the tutorial's code blocks, compiles it, and diffs it back. Fails if the document and the code disagree. |
+| `npm run parse` | `src/parse-request.ts` | 8 | Structured output. Stop parsing prose out of model replies. |
+| `npm run agent` | `src/agent.ts` | 9 | Tools. The model requests; **your code executes**. The loop, hand-written. |
+| `npm run assistant` | `src/assistant.ts` | 9 | The finished project — a chat loop with a tool loop inside it. |
+| `npm run injection` | `src/injection.ts` | 9 | Prompt injection. A tool result carries instructions. Find out whether your program obeys a stranger. |
+| `npm run stream` | `src/stream.ts` | 10 | `messages.stream()`. Same tokens, same cost — it just stops feeling broken. |
+| `npm run assistant:streaming` | `src/assistant-streaming.ts` | 10–12 | The assistant with streaming, prompt caching, and error handling. |
+| `npm run models` | `src/models.ts` | — | Every model ID your key can use. Not in the tutorial; here because guessing wastes an afternoon. |
+| `npm run typecheck` | — | — | Compiles without running. No API key needed. |
+| `npm run verify:docs` | `scripts/check-docs.ts` | — | Checks the tutorial against `src/`. Repo infrastructure, not a lesson. |
 
-### Supporting files (not directly runnable)
-
-| File | Part | Purpose |
-|---|---|---|
-| `src/text.ts` | 3 | `textFrom()` — pulls text out of a response's content blocks. A type predicate, so TypeScript narrows the type for you. |
-| `src/config.ts` | 6 | `MODEL` — one place to change which model everything uses. |
-| `src/usage.ts` | 6 | `logCall()` and the price table. One line per API call, appended to `usage.csv`. Imported by every script that talks to Claude. |
-| `src/weather.ts` | 7 | `getWeather()` and the two interfaces. Imported by everything with a tool. |
-| `body.json` | 7.7 | Request body for the raw `curl.exe` exercise. |
+**Imported by the above, not run directly:** `src/text.ts` (pulls text out of
+content blocks), `src/config.ts` (the model ID, in one place), `src/usage.ts`
+(the ledger and the price table), `src/weather.ts` (the weather client),
+`body.json` (a request body for the raw `curl` exercise in Part 7).
 
 ---
 
-## One thing this repo adds
+## What it costs to run
 
-`npm run models` lists every model ID your API key can actually use. It isn't
-part of the tutorial — it's here because a wrong model ID fails with a
-`404 not_found_error`, and checking beats guessing.
-
-Everything else in `src/` is built somewhere in the walkthrough.
-
----
-
-## Verifying prompt caching
-
-Caching (Part 11) fails **silently**. If your prompt is under the minimum you
-get no caching, no error, and no warning — just a `cache_control` line that
-looks like it's working.
-
-You don't need a special flag to check: `logCall` reports the three input
-numbers after every call.
-
-```
-[usage] in 2 (+0 cached, 1289 written) · out 64 · context 1291 · $0.003867
-[usage] in 2 (+1289 cached, 0 written) · out 53 · context 1440 · $0.000822
-```
-
-The first call writes the cache at 1.25x and costs *more*. The second reads it
-back at 0.1x and costs a quarter as much. Note that `in` collapses to 2 while
-`context` stays at 1,440 — once caching is on, `input_tokens` is no longer your
-input, it's only the uncached remainder. `context_tokens` is the honest number.
-
-Both cache fields stuck at `0` means nothing cached. The minimum cacheable
-prefix is **1,024 tokens for Sonnet 5** (512 for Opus 5 and Fable 5, 4,096 for
-Haiku 4.5). That's why the assistant ships with a long system prompt — a
-one-sentence prompt cannot be cached on any model.
-
-`npm run usage` summarises it after the fact.
-
----
-
-## ESM gotcha
-
-Imports use a `.js` extension even though the files are `.ts`:
-
-```ts
-import { getWeather } from './weather.js';   // yes, .js — the file is weather.ts
-```
-
-That's correct and required. The extension refers to the compiled output, not the
-source. If you write `'./weather'` you'll get a module resolution error.
-
----
-
-## Costs
-
-| Script | Approximate cost |
+| Script | Approximate |
 |---|---|
-| `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
-| `bench` | About 2¢ — 9 calls across 3 models, most of it Opus |
-| `chat`, `assistant`, `assistant:streaming` | Pennies per session; every call is logged to `usage.csv` |
 | `weather`, `typecheck`, `usage` | Free — no Claude call |
+| `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
+| `bench` | About 2¢ — nine calls across three models, most of it Opus |
+| `chat`, `assistant`, `assistant:streaming` | Pennies per session |
 
-Set a spend limit on your Anthropic account anyway. Everyone should.
+Every call is logged to `usage.csv`, so you never have to guess.
+
+**Set a spend limit on your Anthropic account anyway.** A loop with a mistake in
+it can call the API thousands of times a minute, and you will write one, because
+everyone does.
+
+---
+
+## Contributing
+
+`main` requires a pull request. CI runs `typecheck` and `verify:docs` on Node
+20.x and 22.x — both keyless, so they run on forks without secrets.
+
+If you change a file in `src/`, change the matching code block in
+`docs/typescript.md` too. `verify:docs` will tell you if you forget, and it
+names the exact line.
+
+Corrections to the tutorial are as welcome as corrections to the code. A
+sentence that misleads a beginner is a bug.
 
 ---
 
@@ -162,21 +182,19 @@ contrast to the **veteranus**, the one who had been through a campaign.
 Latin built abstract nouns from roles with the suffix **-cinium**: from *latro*,
 a bandit, came *latrocinium*, banditry; from *patronus*, a patron, came
 *patrocinium*, patronage. From *tiro* came **tirocinium** — the condition of
-being a recruit, and so a soldier's first campaign. It widened over time to mean
-any apprenticeship or first attempt at a difficult thing. William Cowper used it
-as the title of a poem about schooling in 1785.
+being a recruit, and so a soldier's first campaign. It widened to mean any
+apprenticeship or first attempt at a difficult thing; William Cowper used it as
+the title of a poem about schooling in 1785. The word survives in English as
+**tyro**, a beginner, though it has mostly fallen out of use.
 
-The word survives in English as **tyro**, meaning a beginner, though it has
-mostly fallen out of use.
-
-**tirocine** is a clipped form of *tirocinium* — not a real Latin word, just a
-shorter one to type. It was chosen because the original meaning is exactly
-right: this is a first campaign. Not a portfolio, not a framework. Somewhere to
-be new at something and have that be the point.
+**tirocine** is a clipped form — not a real Latin word, just a shorter one to
+type. The original meaning is exactly right: this is a first campaign. Not a
+portfolio, not a framework. Somewhere to be new at something and have that be
+the point.
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE). Use the code, copy it into your own projects,
-teach from it. Attribution is welcome but not required.
+teach from it. Attribution is welcome, not required.
