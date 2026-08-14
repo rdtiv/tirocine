@@ -404,13 +404,38 @@ function bail(doc: string, line: number, message: string): never {
 // Runs first and exits on failure. There is no point checking whether a
 // document agrees with the code if the document itself is malformed — and a
 // broken fence would make the block extraction below produce nonsense.
-const MARKDOWN = [
-  'README.md',
-  'CLAUDE.md',
-  ...readdirSync('docs')
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => `docs/${f}`),
-];
+
+/** Directories that never hold documentation meant to be checked here —
+ *  installed packages, VCS internals, the Python venv, agent state, generated
+ *  caches. Walking into any of these would make "every Markdown file" both
+ *  slow and wrong: a dependency's README is not this repo's documentation. */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.venv',
+  '.claude',
+  '__pycache__',
+  'dist',
+  'build',
+]);
+
+/** Every *.md file in the repo, found by walking the tree rather than a
+ *  hardcoded list — a Markdown file added anywhere should be checked, not
+ *  just the ones this script already knew about when it was written. */
+function findMarkdown(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      out.push(...findMarkdown(join(dir, entry.name)));
+    } else if (entry.name.endsWith('.md')) {
+      out.push(join(dir, entry.name));
+    }
+  }
+  return out;
+}
+
+const MARKDOWN = findMarkdown('.').sort();
 
 const structural: string[] = [];
 
@@ -451,6 +476,140 @@ if (structural.length) {
   process.exit(1);
 }
 console.log(`structure: ${MARKDOWN.length} Markdown files — fences balanced, links resolve`);
+
+// --- 0.5. the two languages' command lists must not drift -------------------
+// Nothing else checks that `[project.scripts]` in pyproject.toml stays
+// aligned with `scripts` in package.json. The tutorial's own claim is that
+// the names match on purpose, with exactly one deliberate exception — a
+// colon is illegal in a Python entry-point name, so npm's
+// `assistant:streaming` becomes uv's `assistant-streaming`. This is the gate
+// that would have caught a reader being told to run a command that does not
+// exist.
+
+/** The one place the two naming schemes are allowed to disagree. */
+const RENAMED_ENTRY_POINT = new Map([['assistant:streaming', 'assistant-streaming']]);
+const RENAMED_NPM_SCRIPT = new Map(
+  [...RENAMED_ENTRY_POINT].map(([npm, uv]) => [uv, npm] as const),
+);
+
+/** npm scripts that are infrastructure, not lessons, and so have no Python
+ *  entry point to check against. */
+const NPM_ONLY = new Set(['typecheck', 'typecheck:py', 'verify:docs']);
+
+/** One `[project.scripts]` entry: its raw `module:function` target and the
+ *  line it came from, for error messages. */
+interface ScriptEntry {
+  target: string;
+  line: number;
+}
+
+/**
+ * Hand-rolled parser for just the `[project.scripts]` table — not a TOML
+ * parser, and deliberately not: this file has one table this script cares
+ * about, in the plain `name = "module:function"` form pyproject.toml already
+ * uses throughout, so a dependency buys nothing here.
+ */
+function parsePyprojectScripts(text: string): Map<string, ScriptEntry> {
+  const out = new Map<string, ScriptEntry>();
+  let inSection = false;
+
+  text.split('\n').forEach((raw, i) => {
+    const line = raw.trim();
+    if (line.startsWith('[')) {
+      inSection = line === '[project.scripts]';
+      return;
+    }
+    if (!inSection || !line || line.startsWith('#')) return;
+
+    const m = line.match(/^([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"\s*$/);
+    if (!m) {
+      bail('pyproject.toml', i + 1, `unparseable line in [project.scripts]: ${JSON.stringify(raw)}`);
+    }
+    out.set(m![1]!, { target: m![2]!, line: i + 1 });
+  });
+
+  return out;
+}
+
+const pyScripts = parsePyprojectScripts(readFileSync('pyproject.toml', 'utf8'));
+const npmScripts = (
+  JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> }
+).scripts;
+
+const commandProblems: string[] = [];
+
+// Every lesson script in package.json must have a matching entry point.
+for (const name of Object.keys(npmScripts)) {
+  if (NPM_ONLY.has(name)) continue;
+  const expected = RENAMED_ENTRY_POINT.get(name) ?? name;
+  if (!pyScripts.has(expected)) {
+    commandProblems.push(
+      `  npm script "${name}" (package.json) has no matching [project.scripts] entry ` +
+        `"${expected}" in pyproject.toml.`,
+    );
+  }
+}
+
+// And nothing in pyproject.toml should point at an npm script that doesn't exist.
+for (const name of pyScripts.keys()) {
+  const expected = RENAMED_NPM_SCRIPT.get(name) ?? name;
+  if (!(expected in npmScripts)) {
+    commandProblems.push(
+      `  [project.scripts] entry "${name}" (pyproject.toml) has no matching npm script ` +
+        `"${expected}" in package.json.`,
+    );
+  }
+}
+
+// Every entry point must resolve to a real module in pyweather/ that defines
+// the function it names — otherwise `uv run <name>` fails at the reader's
+// terminal, which is worse than this gate failing at ours.
+for (const [name, { target, line }] of pyScripts) {
+  const m = target.match(/^([\w.]+):(\w+)$/);
+  if (!m) {
+    commandProblems.push(
+      `  pyproject.toml:${line} [project.scripts] entry "${name}" = "${target}" is not a ` +
+        `"module:function" target.`,
+    );
+    continue;
+  }
+  const [, modulePath, fn] = m as unknown as [string, string, string];
+  if (!modulePath.startsWith('pyweather.')) {
+    commandProblems.push(
+      `  pyproject.toml:${line} [project.scripts] entry "${name}" targets ${modulePath}, ` +
+        `outside pyweather/.`,
+    );
+    continue;
+  }
+  const file = modulePath.replace(/\./g, '/') + '.py';
+  if (!existsSync(file)) {
+    commandProblems.push(
+      `  pyproject.toml:${line} [project.scripts] entry "${name}" targets ${file}, which ` +
+        `does not exist.`,
+    );
+    continue;
+  }
+  const src = readFileSync(file, 'utf8');
+  if (!new RegExp(`^def ${fn}\\(`, 'm').test(src)) {
+    commandProblems.push(
+      `  pyproject.toml:${line} [project.scripts] entry "${name}" targets ${file}:${fn}, but ` +
+        `${file} defines no "def ${fn}(".`,
+    );
+  }
+}
+
+if (commandProblems.length) {
+  console.error(
+    `\ncommand parity FAILED — ${commandProblems.length} problem(s) between package.json and ` +
+      `pyproject.toml:\n`,
+  );
+  console.error(commandProblems.join('\n') + '\n');
+  process.exit(1);
+}
+console.log(
+  `command parity: ${Object.keys(npmScripts).length} npm scripts and ${pyScripts.size} ` +
+    `[project.scripts] entries agree`,
+);
 
 let failures = 0;
 
