@@ -43,14 +43,20 @@ of what it spent.
 |---|---|---|
 | **1** | Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md) | Complete |
 | **2** | [The TypeScript build](docs/typescript.md) | Complete — builds everything in `src/` |
-| **3** | [The Python build](docs/python.md) | Draft — no companion code yet |
+| **3** | [The Python build](docs/python.md) | Complete — builds everything in `pyweather/` |
 | **4** | [The app](docs/app.md) — Next.js, the AI SDK, Vercel | Outline only |
 
-Documents 3 and 4 state their own gaps at the top. Nothing here pretends to be
-finished when it isn't.
+Document 4 states its own gaps at the top. Nothing here pretends to be finished
+when it isn't.
 
 Start at **1**, then **2**. Everything in `src/` is built by document 2, in
 order, one file per lesson.
+
+Document 3 then builds the **same program a second time**, in Python. It is not
+a Python tutorial and teaches no new concepts — the point is the comparison. If
+you only ever see one language you cannot tell which of the things you learned
+are real and which are just how TypeScript happens to write them. Both builds
+write to the same `usage.csv`, so `npm run usage` totals them together.
 
 ---
 
@@ -88,8 +94,23 @@ npm run usage       # what that call just cost you
 > `src/config.ts` holds the one most scripts use; `src/usage.ts` and
 > `src/bench.ts` name all three for pricing and comparison; and `index.ts`,
 > `chat.ts`, and `truncate.ts` hardcode one deliberately, because they exist to
-> show a single call. Run `npm run models` and update what you find. Don't trust
-> a document over a live API — including this one.
+> show a single call. The Python build mirrors all of those, in
+> `pyweather/config.py`, `pyweather/usage.py`, and `pyweather/bench.py`. Run
+> `npm run models` and update what you find. Don't trust a document over a live
+> API — including this one.
+
+For document 3 you also need **[uv](https://docs.astral.sh/uv/)**, which
+installs Python itself along with the dependencies:
+
+```bash
+uv sync             # creates .venv and installs everything, Python included
+npm run typecheck:py   # no key needed: proves the Python compiles
+uv run weather      # no key needed either: the weather client, no AI
+uv run dev          # the same first Claude call, in Python
+```
+
+Run those from the **repo root**, not from inside `pyweather/` — that is where
+`usage.csv` lives, and where both languages expect to find it.
 
 ---
 
@@ -107,6 +128,11 @@ An API key gets you no dashboard. So every call in every script appends a row to
 - **which turn it was** — `prompt` and `reply`, first 40 characters only
 
 `npm run usage` totals it — by model, by session, and by what caching saved.
+So does `uv run usage`, reading the very same file: the two builds share one
+ledger, and the `script` column tells you which language wrote each row. That
+is document 3's argument made physical rather than argued — the file format is
+real, and the language is just spelling.
+
 Three details most tutorials skip:
 
 - **The cost formula has four terms, not two.** Uncached input, cache writes at
@@ -120,16 +146,21 @@ Three details most tutorials skip:
 
 ### The tutorial cannot drift from the code
 
-`npm run verify:docs` rebuilds `src/` **from the tutorial's own code blocks**,
-compiles that, and diffs it back. If a code block and the file it teaches ever
-disagree, CI fails.
+`npm run verify:docs` rebuilds `src/` and `pyweather/` **from the tutorials'
+own code blocks**, typechecks that, and diffs it back. If a code block and the
+file it teaches ever disagree, CI fails.
 
 It checks five things. Every Markdown file in the repo is structurally sound —
-fences balanced, links resolving. Then, for the TypeScript walkthrough: the
-document's code compiles (including the earlier version of any file built in
-stages), no edit instruction tells you to make a change already present, every
-finished listing matches `src/` exactly, and nothing in `src/` is left
-unexplained.
+fences balanced, links resolving. Then, once per document that has companion
+code: the document's code typechecks (including the earlier version of any file
+built in stages), no edit instruction tells you to make a change already
+present, every finished listing matches the real file exactly, and nothing in
+the source tree is left unexplained.
+
+Document 2 is held to that standard by `tsc`, document 3 by `pyright`. Adding a
+second language meant adding a row to a table in `scripts/check-docs.ts`, not a
+second checker — the gates themselves never knew which language they were
+looking at.
 
 This exists because it caught real bugs — a step that said "add the import" and
 never showed it, three instructions to add code that was already there, and a
@@ -155,20 +186,28 @@ listing pointing at the wrong endpoint.
 | `npm run assistant:streaming` | `src/assistant-streaming.ts` | 10–12 | The assistant with streaming, prompt caching, and error handling. |
 | `npm run models` | `src/models.ts` | — | Every model ID your key can use. Not in the tutorial; here because guessing wastes an afternoon. |
 | `npm run typecheck` | — | — | Compiles without running. No API key needed. |
-| `npm run verify:docs` | `scripts/check-docs.ts` | — | Checks the tutorial against `src/`. Repo infrastructure, not a lesson. |
+| `npm run typecheck:py` | — | — | The same, for `pyweather/`, via pyright. No API key needed. |
+| `npm run verify:docs` | `scripts/check-docs.ts` | — | Checks both tutorials against both source trees. Repo infrastructure, not a lesson. |
 
 **Imported by the above, not run directly:** `src/text.ts` (pulls text out of
 content blocks), `src/config.ts` (the model ID, in one place), `src/usage.ts`
 (the ledger and the price table), `src/weather.ts` (the weather client),
 `body.json` (a request body for the raw `curl` exercise in Part 7).
 
+Document 3 gives every one of these a Python counterpart under `pyweather/`,
+run the same way with `uv run` instead of `npm run` — `uv run agent`,
+`uv run parse`, and so on. The names match on purpose.
+
 ---
 
 ## What it costs to run
 
+Per script, and the same either way — running a lesson in Python costs what it
+costs in TypeScript, because it is the same call.
+
 | Script | Approximate |
 |---|---|
-| `weather`, `typecheck`, `usage` | Free — no Claude call |
+| `weather`, `typecheck`, `typecheck:py`, `usage` | Free — no Claude call |
 | `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
 | `bench` | About 2¢ — nine calls across three models, most of it Opus |
 | `chat`, `assistant`, `assistant:streaming` | Pennies per session |
@@ -183,12 +222,17 @@ everyone does.
 
 ## Contributing
 
-`main` requires a pull request. CI runs `typecheck` and `verify:docs` on Node
-20.x and 22.x — both keyless, so they run on forks without secrets.
+`main` requires a pull request. CI runs `typecheck`, `typecheck:py`, and
+`verify:docs` on Node 20.x and 22.x — all keyless, so they run on forks without
+secrets.
 
 If you change a file in `src/`, change the matching code block in
-`docs/typescript.md` too. `verify:docs` will tell you if you forget, and it
-names the exact line.
+`docs/typescript.md` too; likewise `pyweather/` and `docs/python.md`.
+`verify:docs` will tell you if you forget, and it names the exact line.
+
+Changing one language is usually a reason to look at the other. The two builds
+are meant to stay the same program, and `pyweather/usage.py` in particular
+*must* keep writing the same columns as `src/usage.ts` — they share a file.
 
 Corrections to the tutorial are as welcome as corrections to the code. A
 sentence that misleads a beginner is a bug.
