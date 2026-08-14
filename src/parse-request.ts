@@ -31,20 +31,28 @@ export type WeatherRequest = z.infer<typeof WeatherRequest>;
 
 const question = 'do I need a jacket in Chicago this evening?';
 
-const message = await client.messages.parse({
-  model: MODEL,
-  max_tokens: 1024,
-  system:
-    'Extract the structured weather request. The location must be a plain ' +
-    'city name suitable for a weather API lookup.',
-  messages: [{ role: 'user', content: question }],
-  output_config: { format: zodOutputFormat(WeatherRequest) },
-});
+const message = await client.messages
+  .parse({
+    model: MODEL,
+    max_tokens: 1024,
+    system:
+      'Extract the structured weather request. The location must be a plain ' +
+      'city name suitable for a weather API lookup.',
+    messages: [{ role: 'user', content: question }],
+    output_config: { format: zodOutputFormat(WeatherRequest) },
+  })
+  .catch((err: unknown) => {
+    // The SDK validates the response text against the schema as part of this
+    // call, and THROWS if the JSON is malformed or truncated — a response cut
+    // off mid-object by `max_tokens` lands here, not in the null check below.
+    throw new Error(`Structured output failed to parse: ${(err as Error).message}`);
+  });
 
 logCall('parse', MODEL, question, message);
 
-// Refusals and truncation still break the shape. stop_reason of `refusal` or
-// `max_tokens` returns something that won't match. That's what this guards.
+// parsed_output is null only when the response has no text block at all —
+// e.g. the model refused outright. Malformed or truncated JSON is a throw
+// (caught above), not a null.
 if (message.parsed_output === null) {
   throw new Error(`No structured output (stop_reason: ${message.stop_reason})`);
 }
