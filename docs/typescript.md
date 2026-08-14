@@ -1289,7 +1289,9 @@ export async function getWeather(location: string): Promise<Weather> {
   const params = new URLSearchParams({ key: apiKey, q: location });
   const url = `https://api.weatherapi.com/v1/current.json?${params}`;
 
-  const response = await fetch(url);
+  // fetch has NO timeout by default — a server that accepts the connection
+  // and then goes quiet hangs this call forever. Say the limit out loud.
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
   if (!response.ok) {
     // Don't include `url` in this message — it contains your API key.

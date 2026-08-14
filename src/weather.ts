@@ -49,7 +49,12 @@ export async function getWeather(location: string): Promise<Weather> {
   const params = new URLSearchParams({ key: apiKey, q: location });
   const url = `https://api.weatherapi.com/v1/current.json?${params}`;
 
-  const response = await fetch(url);
+  // fetch has NO timeout by default: a server that accepts your connection and
+  // then says nothing hangs this call forever, and Part 9's tool loop with it.
+  // httpx (the Python build) ships a 5s default for exactly this reason; both
+  // builds now say 10s out loud, so neither depends on a default you'd have to
+  // go and read.
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
   if (!response.ok) {
     // Don't include `url` in this message — it contains your API key.
