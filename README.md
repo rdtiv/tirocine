@@ -10,7 +10,7 @@ tutorial Part so you can follow along.
 
 ## Setup
 
-You need **Node.js 20 or newer** (`node --version` to check) and two API keys.
+You need **Node.js 20.6 or newer** (`node --version` to check — 20.6 is when `--env-file` arrived) and two API keys.
 
 ```powershell
 git clone https://github.com/rdtiv/llm-basics.git
@@ -36,6 +36,7 @@ Verify your setup before anything else:
 npm run typecheck   # no API key needed — proves the code compiles
 npm run models      # needs ANTHROPIC_API_KEY — lists model IDs your key can use
 npm run dev         # your first Claude call
+npm run usage       # what that call just cost you
 ```
 
 ### If a model ID doesn't work
@@ -51,9 +52,10 @@ your account actually offers. Don't trust a document over a live API.
 | Command | File | Part | What it teaches |
 |---|---|---|---|
 | `npm run dev` | `src/index.ts` | 2–3 | Your first API call. `messages.create`, and why `textFrom()` exists — content is an array of blocks, not a string. |
-| `npm run chat` | `src/chat.ts` | 4, 6 | The API is stateless. **You** own the conversation history. Also prints running cost per turn. |
+| `npm run chat` | `src/chat.ts` | 4, 6 | The API is stateless. **You** own the conversation history. Prints tokens and cost per turn, and appends every call to `usage.csv`. |
 | `npm run truncate` | `src/truncate.ts` | 5 | `max_tokens: 30` cuts the answer off mid-sentence. `stop_reason` tells you it happened — check it. |
 | `npm run bench` | `src/bench.ts` | 6 | Haiku vs Sonnet vs Opus on three tasks of rising difficulty. Time, cost, and quality, side by side. |
+| `npm run usage` | `src/usage-report.ts` | 6 | Reads `usage.csv` and totals it — spend by model, by session, and what caching saved. No API key needed. |
 | `npm run weather` | `src/weather-test.ts` | 7 | `fetch`, `await`, and `response.ok`. No AI in this one at all. |
 | `npm run parse` | `src/parse-request.ts` | 8 | Structured output. `messages.parse()` + `zodOutputFormat()` returns validated, typed data. Stop parsing prose. |
 | `npm run agent` | `src/agent.ts` | 9 | Tools. The model requests; **your code executes**. The full tool loop, hand-written. |
@@ -70,57 +72,47 @@ your account actually offers. Don't trust a document over a live API.
 |---|---|---|
 | `src/text.ts` | 3 | `textFrom()` — pulls text out of a response's content blocks. A type predicate, so TypeScript narrows the type for you. |
 | `src/config.ts` | 6 | `MODEL` — one place to change which model everything uses. |
-| `src/cost.ts` | 6 | `logCost()` and the price table. Imported by `chat.ts`. |
+| `src/usage.ts` | 6 | `logCall()` and the price table. One line per API call, appended to `usage.csv`. Imported by every script that talks to Claude. |
 | `src/weather.ts` | 7 | `getWeather()` and the two interfaces. Imported by everything with a tool. |
 | `body.json` | 7.7 | Request body for the raw `curl.exe` exercise. |
 
 ---
 
-## Two things the tutorial does differently
+## One thing this repo adds
 
-**1. Two assistants, not one.** Part 10.3 tells you to convert `respond()` in
-`src/assistant.ts` to streaming, editing the file in place. This repo keeps the
-blocking version and adds `src/assistant-streaming.ts` instead, so you can run
-both back to back and feel the difference:
+`npm run models` lists every model ID your API key can actually use. It isn't
+part of the tutorial — it's here because a wrong model ID fails with a
+`404 not_found_error`, and checking beats guessing.
 
-```bash
-npm run assistant             # waits, then prints the whole answer at once
-npm run assistant:streaming   # types as it goes
-```
-
-Same model, same cost, same words. Only the delivery changes. That gap is the
-entire lesson of Part 10.
-
-**2. Extra scripts.** The tutorial's own README stub lists six commands. This
-repo adds `truncate`, `weather`, `parse`, `stream`, `assistant:streaming`,
-`models`, and `typecheck` so that every concept in the tutorial has something
-you can actually run.
+Everything else in `src/` is built somewhere in the walkthrough.
 
 ---
 
 ## Verifying prompt caching
 
-Caching (Part 11) fails **silently**. If your prompt is under the minimum, you
-get no caching, no error, and no warning. Set `LOG_USAGE=1` to watch the numbers:
+Caching (Part 11) fails **silently**. If your prompt is under the minimum you
+get no caching, no error, and no warning — just a `cache_control` line that
+looks like it's working.
 
-```powershell
-$env:LOG_USAGE=1; npm run assistant:streaming
+You don't need a special flag to check: `logCall` reports the three input
+numbers after every call.
+
+```
+[usage] in 2 (+0 cached, 1289 written) · out 64 · context 1291 · $0.003867
+[usage] in 2 (+1289 cached, 0 written) · out 53 · context 1440 · $0.000822
 ```
 
-```bash
-LOG_USAGE=1 npm run assistant:streaming   # macOS / Linux
-```
+The first call writes the cache at 1.25x and costs *more*. The second reads it
+back at 0.1x and costs a quarter as much. Note that `in` collapses to 2 while
+`context` stays at 1,440 — once caching is on, `input_tokens` is no longer your
+input, it's only the uncached remainder. `context_tokens` is the honest number.
 
-Then read three fields:
+Both cache fields stuck at `0` means nothing cached. The minimum cacheable
+prefix is **1,024 tokens for Sonnet 5** (512 for Opus 5 and Fable 5, 4,096 for
+Haiku 4.5). That's why the assistant ships with a long system prompt — a
+one-sentence prompt cannot be cached on any model.
 
-- `cache_read_input_tokens` — reused from cache, billed at 0.1x
-- `cache_creation_input_tokens` — written to cache on this call
-- `input_tokens` — only the tokens *after* the last cache marker
-
-Both cache fields at `0` means nothing cached. The minimum cacheable prefix is
-**1,024 tokens for Sonnet 5** (512 for Opus 5 and Fable 5, 4,096 for Haiku 4.5),
-so a short conversation won't cache until it grows. Ask a few questions and watch
-`cache_read_input_tokens` come alive.
+`npm run usage` summarises it after the fact.
 
 ---
 
@@ -142,8 +134,8 @@ source. If you write `'./weather'` you'll get a module resolution error.
 | Script | Approximate cost |
 |---|---|
 | `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
-| `bench` | Under a cent — 9 calls across 3 models |
-| `chat`, `assistant`, `assistant:streaming` | Pennies per session; `chat` prints a running total |
-| `weather`, `typecheck` | Free — no Claude call |
+| `bench` | About 2¢ — 9 calls across 3 models, most of it Opus |
+| `chat`, `assistant`, `assistant:streaming` | Pennies per session; every call is logged to `usage.csv` |
+| `weather`, `typecheck`, `usage` | Free — no Claude call |
 
 Set a spend limit on your Anthropic account anyway. Everyone should.
