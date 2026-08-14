@@ -19,13 +19,16 @@ Grok sessions use `.grok/` and `/xmission`. Claude sessions use this file and
 ## What this repo is
 
 This repository is **tirocine**. Its first project is **weatherwise**, whose
-tutorial series lives in `docs/`. `src/` is
-built entirely by `docs/typescript.md`; the setup, Python, and app
-documents have no code here yet. It is a tutorial, not an application: every
-file in `src/` is a single, independently runnable lesson, numbered by
-tutorial Part. There is no shared entry point — each script is a standalone
-`.ts` file run directly via `tsx`, not imported into a larger program (except
-for the small set of shared helpers noted below).
+tutorial series lives in `docs/`. Unprefixed files in `src/` are built by
+`docs/typescript.md`. `src/grok-*.ts` is built by `docs/grok.md`. The setup,
+Python, and app documents have no code here yet. It is a tutorial, not an
+application: every file in `src/` is a single, independently runnable lesson.
+There is no shared entry point — each script is a standalone `.ts` file run
+directly via `tsx`, not imported into a larger program (except for the small
+set of shared helpers noted below).
+
+Unprefixed scripts (`src/index.ts`, `src/assistant.ts`, …) are the Claude
+lesson. `src/grok-*.ts` is the Grok transfer. Do not merge the two assistants.
 
 Because this is tutorial code, prioritize clarity and matching the existing
 comment style over typical "production" abstraction. Comments in this repo
@@ -48,16 +51,29 @@ npm run injection                 # src/injection.ts — Part 9, prompt injectio
 npm run stream                     # src/stream.ts — Part 10, messages.stream()
 npm run assistant:streaming         # src/assistant-streaming.ts — Part 10.3/11/12, streaming + caching + retries
 npm run models                       # src/models.ts — lists model IDs available to the API key
+npm run grok                      # src/grok-index.ts — first Responses call
+npm run grok:chat                  # src/grok-chat.ts — store:false local array, or previous_response_id
+npm run grok:parse                 # src/grok-parse.ts — same Zod, zodTextFormat, output_parsed
+npm run grok:agent                 # src/grok-agent.ts — hand-written function_call loop
+npm run grok:search                # src/grok-search.ts — web_search (theirs) + get_weather (yours)
+npm run grok:assistant             # src/grok-assistant.ts — finished Grok program, local weather only
+npm run grok:stream                # src/grok-stream.ts — stream: true, output_text.delta
+npm run grok:injection             # src/grok-injection.ts — same POISON as injection.ts
+npm run grok:models                # src/grok-models.ts — lists model IDs for the xAI key
+npm run usage                      # src/usage-report.ts — totals usage.csv (Claude + Grok rows)
+npm run verify:docs                # scripts/check-docs.ts — tutorial fences vs src/
 ```
 
 There is no test suite and no lint script. `npm run typecheck` is the only
-correctness gate — run it after editing any `src/*.ts` file.
+correctness gate — run it after editing any `src/*.ts` file. `npm run
+verify:docs` is the second gate when you touch a companion document.
 
 All runnable scripts load `.env` via `--env-file=.env` (set from
-`.env.example`; requires `ANTHROPIC_API_KEY` and `WEATHER_API_KEY`). Scripts
-other than `typecheck`, `weather`, and (partially) `parse`/`models` make real,
-billed API calls — keep that in mind before running them repeatedly in a
-loop.
+`.env.example`; requires `ANTHROPIC_API_KEY` and `WEATHER_API_KEY`).
+`XAI_API_KEY` is optional and only the `grok*` scripts need it. Scripts
+other than `typecheck`, `weather`, `usage`, and (partially) `parse`/`models`
+make real, billed API calls — keep that in mind before running them
+repeatedly in a loop.
 
 ## Architecture
 
@@ -65,21 +81,26 @@ loop.
 
 - `src/text.ts` — `textFrom(message)`. `Message.content` is an array of
   typed blocks (text, tool_use, thinking, …), not a string. This filters to
-  text blocks and joins them. Used everywhere a response is printed instead
-  of indexing `content[0].text` directly.
-- `src/config.ts` — `MODEL`, one constant used by every script from Part 8
-  onward. `index.ts`, `chat.ts`, and `truncate.ts` hardcode the model ID
-  intentionally (they exist to show a single call) — don't "fix" those to
+  text blocks and joins them. Used everywhere a Claude response is printed
+  instead of indexing `content[0].text` directly.
+- `src/config.ts` — `MODEL`, one constant used by every Claude script from
+  Part 8 onward. `index.ts`, `chat.ts`, and `truncate.ts` hardcode the model
+  ID intentionally (they exist to show a single call) — don't "fix" those to
   import `MODEL`.
-- `src/cost.ts` — `logCost(model, usage)` plus a hardcoded USD/million-token
-  `PRICES` table. Prices are a point-in-time snapshot (see the comment date
-  in the file) — if pricing looks wrong, verify against
-  platform.claude.com/docs rather than assuming the table is stale and
-  silently "fixing" it without checking.
+- `src/usage.ts` — `logCall(script, model, prompt, message)` plus a
+  hardcoded USD/million-token `PRICES` table. Writes `usage.csv`. Prices are
+  a point-in-time snapshot (see the comment date in the file) — if pricing
+  looks wrong, verify against platform.claude.com/docs rather than assuming
+  the table is stale and silently "fixing" it without checking.
+- `src/grok-text.ts` / `src/grok-config.ts` / `src/grok-usage.ts` — the Grok
+  twins. `logGrokCall` writes the same fifteen CSV columns. Import
+  `logGrokCall` from `./grok-usage.js`, never `./usage.js`. Keep
+  `grok-usage.ts` free of Anthropic types.
 - `src/weather.ts` — `getWeather(location)` and two interfaces:
   `WeatherApiResponse` (WeatherAPI.com's wire shape) kept deliberately
   separate from `Weather` (this program's shape). Preserve that separation in
-  any edits — it's the Part 7 lesson, not incidental structure.
+  any edits — it's the Part 7 lesson, not incidental structure. Both
+  assistants import this file.
 
 **The tool-loop pattern** (`agent.ts`, `assistant.ts`,
 `assistant-streaming.ts`, `injection.ts` all implement variants of this):
@@ -113,13 +134,23 @@ untrusted data. If asked to "fix" the vulnerability by uncommenting the
 in the file's own comments as a demonstration that model-level resistance is
 not a real security control — don't present it as a fix.
 
+**The Grok tool-loop** (`grok-agent.ts`, `grok-assistant.ts`,
+`grok-injection.ts`, and the mixed half of `grok-search.ts`) is the same
+shape with Responses spelling: loop while `output` contains
+`function_call`, `JSON.parse(arguments)`, send
+`{ type: 'function_call_output', call_id, output }`, errors back as the
+output string (no `is_error`). `grok-search.ts` also uses hosted
+`web_search` — loop only for `function_call`, never for `web_search_call`.
+`grok-assistant.ts` is local weather only; do not add `web_search` there.
+
 **ESM import quirk:** local imports use a `.js` extension even though source
 files are `.ts` (e.g. `import { getWeather } from './weather.js'`). This is
 required by `moduleResolution: NodeNext` in `tsconfig.json` — the extension
 refers to compiled output, not source. Keep this pattern in any new files.
 
 **Model IDs and pricing are pinned, not evergreen.** `src/config.ts` and
-`src/bench.ts` hardcode model IDs; `src/cost.ts` hardcodes prices. If a
+`src/bench.ts` hardcode Claude model IDs; `src/usage.ts` hardcodes Claude
+prices; `src/grok-config.ts` and `src/grok-usage.ts` pin Grok. If a
 script fails with `404 not_found_error`, or pricing looks off, run `npm run
-models` to check what the live API actually returns rather than trusting
-this repo or the tutorial document.
+models` or `npm run grok:models` to check what the live API actually returns
+rather than trusting this repo or the tutorial document.

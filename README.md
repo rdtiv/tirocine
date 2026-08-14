@@ -42,15 +42,16 @@ of what it spent.
 | | Document | Status |
 |---|---|---|
 | **1** | Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md) | Complete |
-| **2** | [The TypeScript build](docs/typescript.md) | Complete — builds everything in `src/` |
-| **3** | [The Python build](docs/python.md) | Draft — no companion code yet |
-| **4** | [The app](docs/app.md) — Next.js, the AI SDK, Vercel | Outline only |
+| **2** | [The TypeScript build](docs/typescript.md) | Complete — builds the unprefixed files in `src/` |
+| **3** | [The Grok transfer](docs/grok.md) | Complete — rebuilds the assistant against xAI |
+| **4** | [The Python build](docs/python.md) | Draft — no companion code yet |
+| **5** | [The app](docs/app.md) — Next.js, the AI SDK, Vercel | Outline only |
 
-Documents 3 and 4 state their own gaps at the top. Nothing here pretends to be
+Documents 4 and 5 state their own gaps at the top. Nothing here pretends to be
 finished when it isn't.
 
-Start at **1**, then **2**. Everything in `src/` is built by document 2, in
-order, one file per lesson.
+Start at **1**, then **2**. Unprefixed files in `src/` are built by document 2.
+`src/grok-*.ts` is built by document 3.
 
 ---
 
@@ -66,12 +67,13 @@ npm install
 cp .env.example .env        # on Windows: copy .env.example .env
 ```
 
-Then open `.env` and fill in two keys:
+Then open `.env` and fill in the keys. The first two are required. Grok is optional:
 
 | Variable | Where | Cost |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | [platform.claude.com](https://platform.claude.com) → API keys | Pay as you go. Everything here costs well under a dollar in total. |
 | `WEATHER_API_KEY` | [weatherapi.com](https://www.weatherapi.com) | Free tier, no card. |
+| `XAI_API_KEY` | [console.x.ai](https://console.x.ai) | Optional. Only the Grok transfer scripts need this. |
 
 `.env` is gitignored and will not be committed. Keep it that way.
 
@@ -85,11 +87,13 @@ npm run usage       # what that call just cost you
 ```
 
 > **If a script fails with `404 not_found_error`,** a model ID has moved.
-> `src/config.ts` holds the one most scripts use; `src/usage.ts` and
+> `src/config.ts` holds the Claude ID most scripts use; `src/usage.ts` and
 > `src/bench.ts` name all three for pricing and comparison; and `index.ts`,
 > `chat.ts`, and `truncate.ts` hardcode one deliberately, because they exist to
-> show a single call. Run `npm run models` and update what you find. Don't trust
-> a document over a live API — including this one.
+> show a single call. Grok scripts read `src/grok-config.ts` (or hardcode
+> `grok-4.6` the same way). Run `npm run models` or `npm run grok:models` and
+> update what you find. Don't trust a document over a live API — including this
+> one.
 
 ---
 
@@ -125,11 +129,11 @@ compiles that, and diffs it back. If a code block and the file it teaches ever
 disagree, CI fails.
 
 It checks five things. Every Markdown file in the repo is structurally sound —
-fences balanced, links resolving. Then, for the TypeScript walkthrough: the
-document's code compiles (including the earlier version of any file built in
-stages), no edit instruction tells you to make a change already present, every
-finished listing matches `src/` exactly, and nothing in `src/` is left
-unexplained.
+fences balanced, links resolving. Then, once per companion document (TypeScript
+and Grok): the document's code compiles (including the earlier version of any
+file built in stages), no edit instruction tells you to make a change already
+present, every finished listing matches `src/` exactly, and nothing that
+document owns in `src/` is left unexplained.
 
 This exists because it caught real bugs — a step that said "add the import" and
 never showed it, three instructions to add code that was already there, and a
@@ -154,13 +158,24 @@ listing pointing at the wrong endpoint.
 | `npm run stream` | `src/stream.ts` | 10 | `messages.stream()`. Same tokens, same cost — it just stops feeling broken. |
 | `npm run assistant:streaming` | `src/assistant-streaming.ts` | 10–12 | The assistant with streaming, prompt caching, and error handling. |
 | `npm run models` | `src/models.ts` | — | Every model ID your key can use. Not in the tutorial; here because guessing wastes an afternoon. |
+| `npm run grok` | `src/grok-index.ts` | Grok | First Responses call. Hardcoded `grok-4.6`, same instinct as `npm run dev`. |
+| `npm run grok:chat` | `src/grok-chat.ts` | Grok | Memory fork: `store: false` + a local array, or `previous_response_id`. |
+| `npm run grok:parse` | `src/grok-parse.ts` | Grok | Same Zod schema as `parse`. `zodTextFormat`, field `output_parsed`. |
+| `npm run grok:agent` | `src/grok-agent.ts` | Grok | Hand-written tool loop. `function_call`, `JSON.parse(arguments)`. |
+| `npm run grok:search` | `src/grok-search.ts` | Grok | Who runs the tool. `web_search` is theirs; loop only `function_call`. |
+| `npm run grok:assistant` | `src/grok-assistant.ts` | Grok | Finished Grok program. Local weather only — no `web_search`. |
+| `npm run grok:stream` | `src/grok-stream.ts` | Grok | `stream: true`. Write `response.output_text.delta`. |
+| `npm run grok:injection` | `src/grok-injection.ts` | Grok | Same `POISON` as `injection.ts`. `BOUNDARY` is not a fix. |
+| `npm run grok:models` | `src/grok-models.ts` | — | Every model ID your xAI key can use. Documented extra, not in the transfer. |
 | `npm run typecheck` | — | — | Compiles without running. No API key needed. |
 | `npm run verify:docs` | `scripts/check-docs.ts` | — | Checks the tutorial against `src/`. Repo infrastructure, not a lesson. |
 
 **Imported by the above, not run directly:** `src/text.ts` (pulls text out of
-content blocks), `src/config.ts` (the model ID, in one place), `src/usage.ts`
-(the ledger and the price table), `src/weather.ts` (the weather client),
-`body.json` (a request body for the raw `curl` exercise in Part 7).
+content blocks), `src/config.ts` (the Claude model ID, in one place),
+`src/usage.ts` (the Claude ledger and price table), `src/weather.ts` (the
+weather client), `src/grok-text.ts` / `src/grok-config.ts` / `src/grok-usage.ts`
+(the Grok twins — same `usage.csv`, separate module), `body.json` (a request
+body for the raw `curl` exercise in Part 7).
 
 ---
 
@@ -186,9 +201,10 @@ everyone does.
 `main` requires a pull request. CI runs `typecheck` and `verify:docs` on Node
 20.x and 22.x — both keyless, so they run on forks without secrets.
 
-If you change a file in `src/`, change the matching code block in
-`docs/typescript.md` too. `verify:docs` will tell you if you forget, and it
-names the exact line.
+If you change an unprefixed file in `src/`, change the matching code block in
+`docs/typescript.md`. If you change a `src/grok-*.ts` file, change
+`docs/grok.md`. `verify:docs` will tell you if you forget, and it names the
+exact line.
 
 Corrections to the tutorial are as welcome as corrections to the code. A
 sentence that misleads a beginner is a bug.

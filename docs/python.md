@@ -3,8 +3,9 @@
 > **The weatherwise series**
 > 1. Setup — [Windows](setup-windows.md) · [macOS](setup-mac.md)
 > 2. [The TypeScript build](typescript.md) — the assistant, start to finish
-> 3. **The Python build** — the same program again, to see which ideas were real *(you are here)*
-> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 3. [The Grok transfer](grok.md) — the same assistant against xAI
+> 4. **The Python build** — the same program again, to see which ideas were real *(you are here)*
+> 5. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
 **Before you start:** finish [the TypeScript build](typescript.md). This document assumes you already have `src/weather.ts`, `src/agent.ts`, and the rest in front of you to compare against — the whole point is the comparison.
 
