@@ -456,7 +456,7 @@ So build your own. One function, one line per call, appended to a spreadsheet yo
 Create `src/usage.ts`:
 
 ```typescript
-import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import type Anthropic from '@anthropic-ai/sdk';
 import { textFrom } from './text.js';
@@ -553,8 +553,23 @@ export function logCall(
 
   const cost = costOf(model, usage);
 
+  const header = COLUMNS.join(',');
+
   if (!existsSync(FILE)) {
-    writeFileSync(FILE, `${BOM}${COLUMNS.join(',')}\n`);
+    writeFileSync(FILE, `${BOM}${header}\n`);
+  } else {
+    // Check the columns before appending. If COLUMNS ever changes, new rows
+    // written under an old header line up one column out, `npm run usage`
+    // reads the wrong cells, and Number('') is 0 — so it reports $0.00 and
+    // looks fine. A cost log that silently says zero is the worst outcome
+    // this file could have, so refuse rather than corrupt.
+    const existing = readFileSync(FILE, 'utf8').split('\n')[0]?.replace(BOM, '');
+    if (existing !== header) {
+      throw new Error(
+        `${FILE} has different columns than this version of usage.ts writes.\n` +
+          `Rename or delete it and run again — the old rows stay readable in Excel.`,
+      );
+    }
   }
 
   appendFileSync(
@@ -601,6 +616,11 @@ That is the longest file in this tutorial, and it is worth reading twice. Four t
 **`context_tokens` is the number nobody shows you.** It is the whole prompt you resent this turn: `input_tokens + cache_read + cache_write`. That is your conversation — the thing you have to keep carrying. Watch this column, not `input_tokens`, if you want to know how big your conversation has got.
 
 **It logs 40 characters of the prompt, and no more.** Enough to tell one row from another; not enough to be a transcript sitting on your disk. Telemetry that quietly writes every user message to a file is how you end up with a privacy incident. Forty rather than ten or twenty, incidentally, because the word that distinguishes one row from the next is at the *end*: `what's the weather in Denver` is 28 characters, and a 20-character slice makes the Denver row identical to the Austin one.
+
+
+**It refuses to append to a file it doesn't recognise.** If the columns ever change — you add one, or a later Part does — rows written under the old header line up one column out. `npm run usage` then reads the wrong cells, `Number('')` is `0`, and it cheerfully reports **$0.00**. Nothing errors; the number is just wrong. So `logCall` compares the existing header before appending and refuses if it differs.
+
+That is the same instinct as `response.ok` in Part 7 and `stop_reason` in Part 5, applied to your own file instead of someone else's API: *something came back that you didn't just create — check it before you trust it.* A cost log that silently reports zero is the worst thing this file could do, because you would believe it.
 
 > **Add `usage.csv` to `.gitignore`**, next to `.env`. Same instinct: it is yours, it is local, and it does not belong in a repository.
 

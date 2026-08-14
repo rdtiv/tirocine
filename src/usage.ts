@@ -15,7 +15,7 @@
 //      you can tell one row from another. Telemetry that quietly writes every
 //      user message to disk is how you end up with a privacy incident.
 
-import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import type Anthropic from '@anthropic-ai/sdk';
 import { textFrom } from './text.js';
@@ -112,8 +112,23 @@ export function logCall(
 
   const cost = costOf(model, usage);
 
+  const header = COLUMNS.join(',');
+
   if (!existsSync(FILE)) {
-    writeFileSync(FILE, `${BOM}${COLUMNS.join(',')}\n`);
+    writeFileSync(FILE, `${BOM}${header}\n`);
+  } else {
+    // Check the columns before appending. If COLUMNS ever changes, new rows
+    // written under an old header line up one column out, `npm run usage`
+    // reads the wrong cells, and Number('') is 0 — so it reports $0.00 and
+    // looks fine. A cost log that silently says zero is the worst outcome
+    // this file could have, so refuse rather than corrupt.
+    const existing = readFileSync(FILE, 'utf8').split('\n')[0]?.replace(BOM, '');
+    if (existing !== header) {
+      throw new Error(
+        `${FILE} has different columns than this version of usage.ts writes.\n` +
+          `Rename or delete it and run again — the old rows stay readable in Excel.`,
+      );
+    }
   }
 
   appendFileSync(
