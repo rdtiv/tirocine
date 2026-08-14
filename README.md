@@ -124,10 +124,12 @@ Three details most tutorials skip:
 compiles that, and diffs it back. If a code block and the file it teaches ever
 disagree, CI fails.
 
-It checks four things: that the document's code compiles (including the earlier
-version of any file built in stages), that no edit instruction tells you to make
-a change already present, that every finished listing matches `src/` exactly,
-and that nothing in `src/` is left unexplained.
+It checks five things. Every Markdown file in the repo is structurally sound —
+fences balanced, links resolving. Then, for the TypeScript walkthrough: the
+document's code compiles (including the earlier version of any file built in
+stages), no edit instruction tells you to make a change already present, every
+finished listing matches `src/` exactly, and nothing in `src/` is left
+unexplained.
 
 This exists because it caught real bugs — a step that said "add the import" and
 never showed it, three instructions to add code that was already there, and a

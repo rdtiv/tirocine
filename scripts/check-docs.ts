@@ -18,6 +18,12 @@
 //      version of any file the document builds in stages.
 //   4. Diff each reconstructed file against the real one in src/.
 //
+// Steps 1-4 apply to docs/typescript.md, the only document with companion code
+// today. Before any of that, every Markdown file in the repo gets a structural
+// check — balanced fences and resolving links — because those break in
+// documents that will never have code to diff against, and a mangled code
+// fence in a tutorial is worse than a wrong one: it renders as prose.
+//
 // A block that cannot be classified is an ERROR, never a silent skip — a
 // checker that quietly covers less than you think is worse than none.
 
@@ -33,7 +39,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const DOC = 'docs/typescript.md';
 
@@ -115,6 +121,58 @@ function bail(line: number, message: string): never {
   console.error(`\n${DOC}:${line}  ${message}\n`);
   process.exit(1);
 }
+
+// --- 0. structure: every Markdown file in the repo --------------------------
+// Runs first and exits on failure. There is no point checking whether a
+// document agrees with the code if the document itself is malformed — and a
+// broken fence would make the block extraction below produce nonsense.
+const MARKDOWN = [
+  'README.md',
+  'CLAUDE.md',
+  ...readdirSync('docs')
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => `docs/${f}`),
+];
+
+const structural: string[] = [];
+
+for (const file of MARKDOWN) {
+  const lines = readFileSync(file, 'utf8').split('\n');
+
+  // Fences must pair up. An odd count means the rest of the document is
+  // rendering as code, or as prose, depending which way it fell.
+  const fences = lines.filter((l) => l.trim().startsWith('```')).length;
+  if (fences % 2 !== 0) {
+    structural.push(`  ${file}: ${fences} code fences — an odd number, so one is unterminated.`);
+  }
+
+  lines.forEach((l, i) => {
+    // Exactly two backticks at the start of a line is the signature of a
+    // fence damaged by a careless find-and-replace. It is never valid here.
+    if (/^``(?!`)/.test(l.trim())) {
+      structural.push(`  ${file}:${i + 1}: line starts with two backticks — a broken \`\`\` fence.`);
+    }
+  });
+
+  // Every relative link must resolve. Renaming a document is the common way
+  // these break, and nothing else notices until a reader clicks.
+  const dir = dirname(file);
+  for (const m of readFileSync(file, 'utf8').matchAll(/\]\(([^)\s]+)\)/g)) {
+    const target = m[1]!;
+    if (/^(https?:|mailto:|#)/.test(target)) continue;
+    const path = join(dir, target.split('#')[0]!);
+    if (!existsSync(path)) {
+      structural.push(`  ${file}: link to ${target} does not resolve (${path} is missing).`);
+    }
+  }
+}
+
+if (structural.length) {
+  console.error(`\nstructure FAILED — ${structural.length} problem(s):\n`);
+  console.error(structural.join('\n') + '\n');
+  process.exit(1);
+}
+console.log(`structure: ${MARKDOWN.length} Markdown files — fences balanced, links resolve`);
 
 // --- 1. extract and classify ------------------------------------------------
 const doc = readFileSync(DOC, 'utf8').split('\n');
