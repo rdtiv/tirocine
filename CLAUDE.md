@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-Companion code for the **weatherwise** tutorial series in `docs/`. `src/` is
+This repository is **tirocine**. Its first project is **weatherwise**, whose
+tutorial series lives in `docs/`. `src/` is
 built entirely by `docs/typescript.md`; the setup, Python, and app
 documents have no code here yet. It is a tutorial, not an application: every
 file in `src/` is a single, independently runnable lesson, numbered by

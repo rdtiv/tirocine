@@ -1,6 +1,9 @@
-# weatherwise
+# tirocine
 
-Companion code for the **weatherwise** series, in `docs/`:
+Learning to build on large language models, one project at a time.
+
+The first project is **weatherwise** — a command-line weather assistant built on
+the Claude API, taught from zero. Its walkthrough lives in `docs/`:
 
 1. Setup — [Windows](docs/setup-windows.md) · [macOS](docs/setup-mac.md) *(stub)*
 2. [The TypeScript build](docs/typescript.md) — every script in `src/` is built here
@@ -18,8 +21,8 @@ tutorial Part so you can follow along.
 You need **Node.js 20.6 or newer** (`node --version` to check — 20.6 is when `--env-file` arrived) and two API keys.
 
 ```powershell
-git clone https://github.com/rdtiv/llm-basics.git
-cd llm-basics
+git clone https://github.com/rdtiv/tirocine.git
+cd tirocine
 npm install
 copy .env.example .env
 ```
@@ -145,3 +148,26 @@ source. If you write `'./weather'` you'll get a module resolution error.
 | `weather`, `typecheck`, `usage` | Free — no Claude call |
 
 Set a spend limit on your Anthropic account anyway. Everyone should.
+
+---
+
+## Why "tirocine"
+
+A Roman army recruit was a **tiro** — a soldier who had enlisted but not yet
+fought. The word carried no insult. It simply meant *new*, and it stood in
+contrast to the **veteranus**, the one who had been through a campaign.
+
+Latin built abstract nouns from roles with the suffix **-cinium**: from *latro*,
+a bandit, came *latrocinium*, banditry; from *patronus*, a patron, came
+*patrocinium*, patronage. From *tiro* came **tirocinium** — the condition of
+being a recruit, and so a soldier's first campaign. It widened over time to mean
+any apprenticeship or first attempt at a difficult thing. William Cowper used it
+as the title of a poem about schooling in 1785.
+
+The word survives in English as **tyro**, meaning a beginner, though it has
+mostly fallen out of use.
+
+**tirocine** is a clipped form of *tirocinium* — not a real Latin word, just a
+shorter one to type. It was chosen because the original meaning is exactly
+right: this is a first campaign. Not a portfolio, not a framework. Somewhere to
+be new at something and have that be the point.
