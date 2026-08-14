@@ -128,9 +128,18 @@ for (const runId of [...new Set(rows.map((r) => r.run_id))]) {
 // --- Caching ----------------------------------------------------------------
 const cacheRead = sum((r) => r.cache_read);
 const cacheWrite = sum((r) => r.cache_write);
+const anyGrok = rows.some((r) => r.model.startsWith('grok'));
 
 console.log('\n--- caching ---');
-if (cacheRead === 0 && cacheWrite === 0) {
+if (anyGrok) {
+  // Grok (or mixed) rows: Claude's 0.1× / 1,024 / 1.25× copy is the wrong
+  // story. Grok caches automatically, writes cost nothing extra, and the
+  // dollar savings are already in cost_usd.
+  console.log(`Written to cache  ${cacheWrite.toLocaleString()} tokens`);
+  console.log(`Read from cache   ${cacheRead.toLocaleString()} tokens`);
+  console.log('Grok cache_write is always 0 — there is no separate write premium.');
+  console.log('Savings are already in cost_usd; this report does not re-derive them.');
+} else if (cacheRead === 0 && cacheWrite === 0) {
   console.log('No cache activity yet. Either caching is off, or every prompt');
   console.log('was under the minimum (1,024 tokens on Sonnet 5). See Part 11.');
 } else {
