@@ -626,10 +626,24 @@ def main() -> None:
     with LEDGER.open("r", encoding="utf-8-sig", newline="") as f:
         lines = list(csv.reader(f))
 
+    # A file that exists but is empty is a real state: a run killed between
+    # creating usage.csv and writing the header. src/usage-report.ts survives
+    # it, so this must too — the two reports have to agree on every input,
+    # not just the happy one.
+    if not lines:
+        print(f"No rows in {LEDGER.name} yet. Run any script that calls Claude, then try again.")
+        return
+
     headers = lines[0]
 
     def get(cells: list[str], name: str) -> str:
-        return cells[headers.index(name)] if name in headers else ""
+        # Missing column, or a row shorter than the header — the last row of a
+        # ledger whose append was interrupted. Both read as empty rather than
+        # raising, matching `?? ''` in src/usage-report.ts.
+        if name not in headers:
+            return ""
+        i = headers.index(name)
+        return cells[i] if i < len(cells) else ""
 
     rows = [
         Row(
@@ -949,7 +963,10 @@ def get_weather(location: str) -> Weather:
         params={"key": api_key, "q": location},
     )
 
-    if response.status_code != 200:
+    # is_success is true for any 2xx, which is exactly what `response.ok`
+    # means in src/weather.ts. `status_code != 200` would look equivalent and
+    # is not: it rejects a 204 the TypeScript build accepts.
+    if not response.is_success:
         # Don't include the URL in this message — it contains your API key.
         raise RuntimeError(f'Weather API returned {response.status_code} for "{location}"')
 
@@ -976,7 +993,7 @@ Now the table this document exists for. Read `src/weather.ts` alongside it:
 | `interface Weather` | `class Weather(BaseModel)` | Yes — a named shape |
 | `fetch(url)` | `httpx.get(url)` | Yes — an HTTP request |
 | `URLSearchParams` | `params={...}` | Yes — safe URL encoding |
-| `if (!response.ok)` | `if response.status_code != 200` | Yes — check before trusting |
+| `if (!response.ok)` | `if not response.is_success` | Yes — check before trusting |
 | `throw new Error(...)` | `raise RuntimeError(...)` | Yes |
 | `data as WeatherApiResponse` | `.model_validate(data)` | **No — see below** |
 | `await` | *(nothing)* | **No — see Part 2** |
@@ -1600,12 +1617,36 @@ uv run stream
 
 Same tokens, same cost. It just stops feeling broken.
 
-`with ... as stream` is Python's context manager, and it is doing the job
-`try/finally` does in TypeScript: guaranteeing the connection is released even
-if you break out of the loop early. `for text in stream.text_stream` replaces
-`for await (const text of stream)`, and `get_final_message()` replaces
-`finalMessage()` — you still need it, because you still want `usage` and
-`stop_reason` after the text has finished arriving.
+This is the one place where the two SDKs offer genuinely different shapes for
+the same job, so read the pair carefully.
+
+```typescript
+stream.on('text', (delta) => process.stdout.write(delta));
+const final = await stream.finalMessage();
+```
+
+```python
+# Illustrative — the same two lines, in the other shape.
+for text in stream.text_stream:
+    print(text, end="", flush=True)
+final = stream.get_final_message()
+```
+
+TypeScript registers a **callback**: you hand `stream.on` a function and the SDK
+calls it as deltas arrive. Python exposes an **iterator**: `text_stream` yields
+deltas and you write an ordinary `for` loop over them. Push versus pull. Both
+SDKs offer both styles — the TypeScript stream is also async-iterable, and
+Python has event-ish helpers — these are just the idiomatic defaults, and each
+reads as normal code in its own language.
+
+`with ... as stream` has no counterpart in `src/stream.ts` at all. It is
+Python's context manager, and it releases the connection on the way out even if
+you break early or raise. The TypeScript version leans on the SDK to clean up
+after the stream completes instead.
+
+`get_final_message()` is `finalMessage()` under a different name, and you still
+need it for the same reason: `usage` and `stop_reason` only exist once the text
+has finished arriving.
 
 ---
 

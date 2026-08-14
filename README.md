@@ -103,10 +103,10 @@ For document 3 you also need **[uv](https://docs.astral.sh/uv/)**, which
 installs Python itself along with the dependencies:
 
 ```bash
-uv sync             # creates .venv and installs everything, Python included
-npm run typecheck:py   # no key needed: proves the Python compiles
-uv run weather      # no key needed either: the weather client, no AI
-uv run dev          # the same first Claude call, in Python
+uv sync                # creates .venv and installs everything, Python included
+npm run typecheck:py   # no key needed at all: proves the Python compiles
+uv run weather         # needs WEATHER_API_KEY, but makes no Claude call
+uv run dev             # the same first Claude call, in Python
 ```
 
 Run those from the **repo root**, not from inside `pyweather/` — that is where

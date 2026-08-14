@@ -74,7 +74,10 @@ def get_weather(location: str) -> Weather:
         params={"key": api_key, "q": location},
     )
 
-    if response.status_code != 200:
+    # is_success is true for any 2xx, which is exactly what `response.ok`
+    # means in src/weather.ts. `status_code != 200` would look equivalent and
+    # is not: it rejects a 204 the TypeScript build accepts.
+    if not response.is_success:
         # Don't include the URL in this message — it contains your API key.
         raise RuntimeError(f'Weather API returned {response.status_code} for "{location}"')
 
