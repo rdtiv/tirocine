@@ -72,7 +72,7 @@ winget install --id GitHub.cli --exact
 **Close Terminal and open a new one**, then verify:
 
 ```powershell
-node --version    # need v20.6 or later (that's when --env-file arrived); v22 is what this guide uses
+node --version    # first number must be 22 or higher
 npm --version
 git --version
 jq --version
@@ -80,6 +80,8 @@ gh --version
 ```
 
 `npm` came with Node. It installs code libraries other people wrote.
+
+> **Why 22.** One Node on this machine runs every script in the project — Claude and Grok. `--env-file` arrived in 20.6, but the `openai` package the Grok chapter uses requires 22, so 22 is the floor. If `node --version` prints `v20` or older, reinstall the LTS (`winget install --id OpenJS.NodeJS.LTS --exact`), close Terminal, open a new one, and check again.
 
 Git for Windows also installs **Git Bash**, a second terminal that understands Mac and Linux commands. You don't need it for this project, but Claude Code uses it internally, which is why we installed Git before Claude Code rather than after.
 

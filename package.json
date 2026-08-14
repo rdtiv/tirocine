@@ -4,6 +4,9 @@
   "description": "A command-line weather assistant built on the Claude API. Companion code for \"Your First Project: A Claude-Powered Weather Assistant in TypeScript\".",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx --env-file=.env src/index.ts",
     "models": "tsx --env-file=.env src/models.ts",

@@ -7,7 +7,7 @@
 > 4. [The Python build](python.md) — the same program again, to see which ideas were real
 > 5. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
-**Before you start:** finish the setup for your machine — [Windows](setup-windows.md) or [macOS](setup-mac.md). This document assumes you have a terminal, Node 20.6+, Git, Cursor, Claude Code, and both API keys in a `.env` file.
+**Before you start:** finish the setup for your machine — [Windows](setup-windows.md) or [macOS](setup-mac.md). This document assumes you have a terminal, Node 22+, Git, Cursor, Claude Code, and both API keys in a `.env` file.
 
 **What you'll build:** `weatherwise` — a command-line assistant that answers plain-English weather questions. It starts as ten lines and ends as a program that runs, waits for you, looks up live weather when it needs to, streams its answers back as it thinks, and keeps the conversation going until you tell it to stop. Like the chat window on claude.ai, except you built it and it can reach the outside world.
 

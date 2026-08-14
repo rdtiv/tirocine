@@ -86,13 +86,13 @@ XAI_API_KEY=xai-your-key-here
 
 Same three rules as the Claude key: not in chat, not in source, not on GitHub. A key is a password that spends money — that was never a Claude idea.
 
-If you built this project from [the TypeScript build](typescript.md), `openai` is already in `package.json`. If you are transferring a copy that does not have it:
+Install the client. If you cloned this repo it is already a dependency — skip the install.
 
 ```bash
 npm install openai
 ```
 
-The scripts are already named. You will run `npm run grok`, `npm run grok:chat`, and the rest as they appear.
+The TypeScript build never added Grok scripts. At each file below, add the one `package.json` line, then run it. Skip the add if you cloned this repo and the script is already there.
 
 The ledger lives in its own file so [the TypeScript build](typescript.md) never has to reprint Grok helpers. Create `src/grok-usage.ts`:
 
@@ -349,7 +349,11 @@ console.log(textFrom(response));
 // ---------------------------------------------------------------------------
 ```
 
-Run it:
+Add to `package.json` scripts:
+
+```json
+"grok": "tsx --env-file=.env src/grok-index.ts"
+```
 
 ```bash
 npm run grok
@@ -460,6 +464,12 @@ while (true) {
 rl.close();
 ```
 
+Add to `package.json` scripts:
+
+```json
+"grok:chat": "tsx --env-file=.env src/grok-chat.ts"
+```
+
 ```bash
 npm run grok:chat
 ```
@@ -540,6 +550,12 @@ if (response.output_parsed === null) {
 const request: WeatherRequest = response.output_parsed;
 console.log(JSON.stringify(request, null, 2));
 // { "location": "Chicago", "units": "fahrenheit", "intent": "clothing_advice" }
+```
+
+Add to `package.json` scripts:
+
+```json
+"grok:parse": "tsx --env-file=.env src/grok-parse.ts"
 ```
 
 ```bash
@@ -703,6 +719,12 @@ while (response.output.some((item) => item.type === 'function_call')) {
 }
 
 console.log(textFrom(response));
+```
+
+Add to `package.json` scripts:
+
+```json
+"grok:agent": "tsx --env-file=.env src/grok-agent.ts"
 ```
 
 ```bash
@@ -881,6 +903,12 @@ for (const item of response.output) {
   console.log(item.type);
 }
 console.log(textFrom(response));
+```
+
+Add to `package.json` scripts:
+
+```json
+"grok:search": "tsx --env-file=.env src/grok-search.ts"
 ```
 
 ```bash
@@ -1094,6 +1122,12 @@ while (true) {
 rl.close();
 ```
 
+Add to `package.json` scripts:
+
+```json
+"grok:assistant": "tsx --env-file=.env src/grok-assistant.ts"
+```
+
 ```bash
 npm run grok:assistant
 ```
@@ -1196,6 +1230,12 @@ logGrokCall('grok-stream', MODEL, question, {
   status: completed.status,
   reply: textFrom(completed),
 });
+```
+
+Add to `package.json` scripts:
+
+```json
+"grok:stream": "tsx --env-file=.env src/grok-stream.ts"
 ```
 
 ```bash
@@ -1334,6 +1374,12 @@ while (response.output.some((item) => item.type === 'function_call')) {
 console.log(textFrom(response));
 ```
 
+Add to `package.json` scripts:
+
+```json
+"grok:injection": "tsx --env-file=.env src/grok-injection.ts"
+```
+
 ```bash
 npm run grok:injection
 ```
@@ -1361,6 +1407,6 @@ What did not transfer, and should not:
 - `src/usage.ts` / `src/usage-report.ts` / the code fences in [the TypeScript build](typescript.md). Those stay Claude's.
 - Truncate, bench, a second weather client, a Grok usage-report, retries-as-a-part. They were Claude-shaped lessons or they are not needed twice.
 
-`src/grok-models.ts` is a documented extra, the twin of `src/models.ts`. It is not built by this document. Run `npm run grok:models` if a model ID 404s.
+`src/grok-models.ts` is a documented extra, the twin of `src/models.ts`. It is not built by this document. Add `"grok:models": "tsx --env-file=.env src/grok-models.ts"` if you want it, then run `npm run grok:models` when a model ID 404s.
 
 When you are done here, [the Python build](python.md) rebuilds the Claude program again, to see which ideas were real. That document is still mid-rework. The ideas you just isolated — memory has an owner, some tools are not yours, a schema is not prose — are the ones that will still be standing when the spelling changes a third time.

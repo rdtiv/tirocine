@@ -57,8 +57,11 @@ Start at **1**, then **2**. Unprefixed files in `src/` are built by document 2.
 
 ## Quick start
 
-You need **Node.js 20.6 or newer** — 20.6 is when `--env-file` arrived, and
-every script here uses it. Check with `node --version`.
+You need **Node.js 22 or newer**. One install, one `node`, every script.
+Check with `node --version` — the first number must be 22 or higher. If you
+see `v20` or older, upgrade, then continue. (20.6 is when `--env-file`
+arrived. The Grok lesson's `openai` package needs 22, so that is the floor
+for the whole project.)
 
 ```bash
 git clone https://github.com/rdtiv/tirocine.git
@@ -199,7 +202,7 @@ everyone does.
 ## Contributing
 
 `main` requires a pull request. CI runs `typecheck` and `verify:docs` on Node
-20.x and 22.x — both keyless, so they run on forks without secrets.
+22.x and 24.x — both keyless, so they run on forks without secrets.
 
 If you change an unprefixed file in `src/`, change the matching code block in
 `docs/typescript.md`. If you change a `src/grok-*.ts` file, change

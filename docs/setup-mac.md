@@ -83,14 +83,14 @@ Node is the runtime that executes JavaScript and TypeScript outside a browser. `
 
 ```bash
 brew install node jq gh
-node --version    # need v20.6 or later; v22 is what this guide uses
+node --version    # first number must be 22 or higher
 npm --version
 git --version
 ```
 
 `npm` came with Node. It installs code libraries other people wrote. Git is already on your Mac.
 
-> **Why 20.6 specifically.** That's the release where Node learned to read a `.env` file by itself, via the `--env-file` flag every script in this project uses. On an older Node the scripts start and then fail to find your API key, which looks like a key problem and isn't.
+> **Why 22.** One Node on this machine runs every script in the project — Claude and Grok. `--env-file` arrived in 20.6, but the `openai` package the Grok chapter uses requires 22, so 22 is the floor. If `node --version` prints `v20` or older, run `brew upgrade node`, open a new terminal, and check again.
 
 ## 0.5 Git and GitHub
 
