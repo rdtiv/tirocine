@@ -1274,6 +1274,7 @@ Now the comparison this Part exists for. Read it against `src/weather.ts`:
 | Make an HTTP request | `fetch(url)` | `httpx.get(url)` |
 | Safe URL encoding | `URLSearchParams` | `params={...}` |
 | Check before trusting | `if (!response.ok)` | `if not response.is_success` |
+| Time limit on the request | `AbortSignal.timeout(10_000)` — **no default at all** | `timeout=10.0` — httpx defaults to 5s |
 | Raise a failure | `throw new Error(...)` | `raise RuntimeError(...)` |
 | Read JSON | `await response.json()` | `response.json()` |
 | Trust the JSON's shape | `data as WeatherApiResponse` | `.model_validate(data)` — **a real check** |

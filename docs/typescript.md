@@ -1363,13 +1363,15 @@ Add that line to the end of `src/weather-test.ts` and run `npm run weather` agai
 
 ### Read what you just wrote
 
-Four ideas in that file, and all four transfer to every API you'll ever call:
+Five ideas in that file, and all five transfer to every API you'll ever call:
 
 **`fetch` makes the HTTP request.** Same thing `curl.exe` did, from inside your program.
 
 **`await` waits for the network.** The request takes maybe 200ms. `await` means "pause here until the answer arrives." That's why the function is marked `async` — and why calling it needs `await` too. The next section explains what's really going on.
 
 **`response.ok` is a check you cannot skip.** If the API returns a 401 or a 404, `fetch` does *not* throw. It hands you a response object with a bad status and moves on. Skipping this check is how you end up with `undefined` errors three functions away from the actual problem.
+
+**`fetch` has no timeout at all.** Not a long one — none. A server that accepts your connection and then goes quiet leaves this call waiting forever, and from Part 9 onward it hangs your tool loop along with it. `AbortSignal.timeout(10_000)` is you saying the limit out loud, because there is no default to inherit. Most HTTP clients in other languages *do* ship one, which is exactly why this is worth knowing rather than assuming.
 
 **The two interfaces are doing different jobs.** `WeatherApiResponse` describes what the *service* sends — their shape, their naming, their `feelslike_f`. `Weather` is what *your* program uses. Keeping them separate means the day you switch weather providers, you change one file and nothing else breaks. That's not beginner over-engineering; it's the reason the next section is easy.
 
