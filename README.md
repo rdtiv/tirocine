@@ -71,7 +71,8 @@ together. That is the argument made physical rather than asserted.
 ## Quick start
 
 You need **Node.js 20.6 or newer** — 20.6 is when `--env-file` arrived, and
-every script here uses it. Check with `node --version`.
+every script that needs a key uses it to read your `.env`. Check with
+`node --version`.
 
 ```bash
 git clone https://github.com/rdtiv/tirocine.git
@@ -117,8 +118,11 @@ uv run weather         # needs WEATHER_API_KEY, but makes no Claude call
 uv run dev             # the same first Claude call, in Python
 ```
 
-Run those from the **repo root**, not from inside `pyweather/` — that is where
-`usage.csv` lives, and where both languages expect to find it.
+`usage.csv` lives at the **repo root**, next to `package.json`, and both builds
+write to that one file. npm gets there for free, because it runs its scripts
+from the project root; the Python side does not lean on that — `pyweather/`
+resolves both the ledger and `.env` from its own location on disk, so `uv run`
+finds them from whichever directory you happened to be standing in.
 
 ---
 
@@ -161,11 +165,13 @@ file it teaches ever disagree, CI fails.
 It checks six things. Every Markdown file in the repo is structurally sound —
 fences balanced, links resolving. The two languages' command lists stay in
 sync — every npm script and every Python entry point in `pyproject.toml` names
-the other, with the one documented exception below. Then, once per document
-that has companion code: the document's code typechecks (including the
-earlier version of any file built in stages), no edit instruction tells you to
-make a change already present, every finished listing matches the real file
-exactly, and nothing in the source tree is left unexplained.
+the other, apart from the exceptions documented below, and every entry point
+resolves to a module that really defines the function it names. Then, once
+per document that has companion code: the document's code typechecks
+(including the earlier version of any file built in stages), no edit
+instruction tells you to make a change already present, every finished listing
+matches the real file exactly, and nothing in the source tree is left
+unexplained.
 
 Document 2 is held to that standard by `tsc`, document 3 by `pyright`. Adding a
 second language meant adding a row to a table in `scripts/check-docs.ts`, not a
@@ -209,8 +215,13 @@ Document 3 gives every lesson script above a Python counterpart under
 agent`, `uv run parse`, and so on. The names match on purpose, with one
 exception: `assistant:streaming` becomes `assistant-streaming`, because a
 colon isn't legal in a Python entry-point name. `typecheck:py` is document
-3's own correctness gate, not a per-script counterpart, and `verify:docs`
-isn't mirrored at all — it already checks both trees.
+3's own correctness gate, not a per-script counterpart, and `typecheck` and
+`verify:docs` aren't mirrored at all — `verify:docs` already checks both trees.
+
+The four helpers have counterparts too — `pyweather/text.py`, `config.py`,
+`usage.py`, `weather.py` — plus one with no TypeScript equivalent:
+`pyweather/__init__.py`, which loads `.env` once for the whole package where
+the npm scripts each pass `--env-file`.
 
 ---
 
@@ -221,10 +232,16 @@ costs in TypeScript, because it is the same call.
 
 | Script | Approximate |
 |---|---|
-| `weather`, `typecheck`, `typecheck:py`, `usage` | Free — no Claude call |
+| `typecheck`, `typecheck:py`, `verify:docs`, `usage` | Free, and no key needed at all |
+| `weather` | Free — needs `WEATHER_API_KEY`, but makes no Claude call |
 | `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
+| `agent`, `injection` | A fraction of a cent — a short tool loop, a few calls |
 | `bench` | About 2¢ — nine calls across three models, most of it Opus |
 | `chat`, `assistant`, `assistant:streaming` | Pennies per session |
+
+`agent`, `injection`, `assistant`, and `assistant:streaming` look up live
+weather, so they need **both** keys. Everything else that calls Claude needs
+only `ANTHROPIC_API_KEY`.
 
 Every call is logged to `usage.csv`, so you never have to guess.
 
