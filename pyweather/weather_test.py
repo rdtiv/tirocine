@@ -23,4 +23,8 @@ def main() -> None:
     # dict, the way JSON.stringify(weather, ...) works directly on a plain
     # object in TypeScript — Python needs that one extra step because
     # `weather` here is a model instance, not a dict.
-    print(json.dumps(weather.model_dump(), indent=2))
+    # ensure_ascii=False: json.dumps defaults to escaping every non-ASCII
+    # character as a \uXXXX sequence, unlike JSON.stringify in TypeScript,
+    # which leaves the character alone. Without this, a location like
+    # "Zürich" would print differently here than in src/weather-test.ts.
+    print(json.dumps(weather.model_dump(), indent=2, ensure_ascii=False))

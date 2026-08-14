@@ -43,7 +43,7 @@ history grows past it, then watch cache_read take over.
 import json
 from typing import cast
 
-from anthropic import Anthropic, APIStatusError
+from anthropic import Anthropic, APIConnectionError, APIStatusError
 from anthropic.types import MessageParam, ToolParam, ToolResultBlockParam
 
 from .config import MODEL
@@ -136,7 +136,10 @@ def respond(client: Anthropic, messages: list[MessageParam], asked: str) -> None
             if block.type != "tool_use":
                 continue
 
-            print(f"  ...looking up {json.dumps(block.input)}")
+            # ensure_ascii=False so a location like "Zürich" prints as typed,
+            # matching JSON.stringify in src/assistant-streaming.ts instead
+            # of escaping it to a \uXXXX sequence.
+            print(f"  ...looking up {json.dumps(block.input, ensure_ascii=False)}")
 
             try:
                 results.append(
@@ -180,7 +183,7 @@ def main() -> None:
         try:
             user_input = input("> ")
         except EOFError:
-            break  # stdin closed — you pressed Ctrl+D, or input was piped in and ran out.
+            break  # stdin closed — you pressed Ctrl+D (Ctrl+Z on Windows), or input was piped in and ran out.
 
         trimmed = user_input.strip()
 
@@ -198,20 +201,22 @@ def main() -> None:
         try:
             print()
             respond(client, messages, trimmed)
-        except APIStatusError as err:
+        except (APIStatusError, APIConnectionError) as err:
             # Part 12 — distinguish an API failure from a bug in your own
             # code.
             #
             # src/assistant-streaming.ts catches the single base class
-            # `Anthropic.APIError`, which carries an optional `status` field
-            # even for connection failures that never got a response. The
-            # Python SDK instead gives status-bearing errors their own
-            # subclass — APIStatusError, raised only when the server
-            # actually replied with a 4xx/5xx — so `err.status_code` here is
-            # never undefined. A plain connection drop (no response at all)
-            # would instead be APIConnectionError, caught below by the
-            # generic handler.
-            print(f"\nAPI error {err.status_code}: {err.message}\n")
+            # `Anthropic.APIError`, which covers both a bad HTTP response AND
+            # a connection that never got one — a dropped connection and a
+            # 500 print through the same branch there. The Python SDK splits
+            # that into two classes: APIStatusError (got a response, so
+            # `.status_code` is always set) and APIConnectionError (never
+            # got one, no `.status_code` at all). Catch both here so a
+            # dropped connection prints the same "API error" message as a
+            # bad response, instead of falling through to the generic
+            # handler below with different wording.
+            status = err.status_code if isinstance(err, APIStatusError) else "connection"
+            print(f"\nAPI error {status}: {err.message}\n")
             del messages[mark:]
         except Exception as err:
             # Roll the whole failed turn back, not just one message:

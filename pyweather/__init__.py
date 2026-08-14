@@ -10,9 +10,11 @@ The TypeScript side does this in package.json, per script:
 
     "agent": "tsx --env-file=.env src/agent.ts"
 
-Thirteen scripts, thirteen copies of `--env-file=.env`. Python does it once,
-here, and every lesson inherits it. Neither is better; they're the same idea
-(read the keys before the program starts) placed at different layers.
+Thirteen scripts, twelve copies of `--env-file=.env` — `usage` is the one
+exception, since it only reads a CSV and never calls Claude, so it has
+nothing to load a key for. Python does it once, here, and every lesson
+inherits it. Neither is better; they're the same idea (read the keys before
+the program starts) placed at different layers.
 
 `find_dotenv()` walks up from this file until it finds a `.env`, so it locates
 the repo root's `.env` no matter which directory you run from.
