@@ -1,3 +1,4 @@
 node_modules/
 .env
 usage.csv
+.DS_Store
