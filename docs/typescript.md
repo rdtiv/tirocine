@@ -168,6 +168,7 @@ Notice `new Anthropic()` takes no arguments. The SDK reads `ANTHROPIC_API_KEY` f
 `system` is its own top-level field, not a message. Role, rules, and format go there.
 
 ```typescript
+// Demo — run it to see `system` work; index.ts gets replaced further down.
 import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic();
@@ -195,6 +196,7 @@ That last system line is the highest-leverage sentence you'll write today. Model
 Here are the parts that matter:
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 {
   id: 'msg_01...',
   role: 'assistant',
@@ -609,6 +611,7 @@ Open `src/chat.ts` and make two changes.
 **Change 1 — swap the import** (you are replacing nothing; this is a new line next to the others):
 
 ```typescript
+// Edit — splice this into src/chat.ts; not a whole file.
 import { logCall } from './usage.js';
 ```
 
@@ -617,6 +620,7 @@ import { logCall } from './usage.js';
 **Change 2 — call it right after each Claude response.** Find this block:
 
 ```typescript
+// Locate — find this in src/chat.ts; you are not changing it yet.
   const response = await client.messages.create({
     model: 'claude-sonnet-5',
     max_tokens: 1024,
@@ -631,17 +635,22 @@ import { logCall } from './usage.js';
 and insert one line between the `create` call and the `push`:
 
 ```typescript
+// Edit — splice this into src/chat.ts; not a whole file.
   logCall('chat', 'claude-sonnet-5', input, response);
 ```
 
 That is the whole integration. Every script from here on gets the same one line.
 
-### Now go back and do the other three
+### Now go back and do the other two
 
-You have written three programs that call Claude and record nothing: `src/index.ts`, `src/truncate.ts`, and — in a moment — everything after this. Add the import and one `logCall` line to each:
+You have written two other programs that call Claude and record nothing: `src/index.ts` and `src/truncate.ts`. Each needs the same two things — the import, and one `logCall` line.
+
+In `src/index.ts`, pull the question into a constant first so you have something to pass:
 
 ```typescript
-// src/index.ts — pull the question into a constant first, so you can log it
+// Edit — splice this into src/index.ts; not a whole file.
+import { logCall } from './usage.js';
+
 const question = 'What is a heat index?';
 
 const message = await client.messages.create({
@@ -653,7 +662,26 @@ const message = await client.messages.create({
 logCall('dev', 'claude-sonnet-5', question, message);
 ```
 
-`src/truncate.ts` gets the same treatment, with `'truncate'` as the script name.
+`src/truncate.ts` is the same shape, with `'truncate'` as the script name:
+
+```typescript
+// Edit — splice this into src/truncate.ts; not a whole file.
+import { logCall } from './usage.js';
+
+const question = 'Write 400 words about how hurricanes form.';
+
+const message = await client.messages.create({
+  model: 'claude-sonnet-5',
+  max_tokens: 30, // deliberately far too small
+  messages: [{ role: 'user', content: question }],
+});
+
+// The ledger records stop_reason too — this run is the one that writes
+// `max_tokens` into usage.csv instead of `end_turn`.
+logCall('truncate', 'claude-sonnet-5', question, message);
+```
+
+That last one is worth running again once it's wired up. It is the only script in the tutorial that writes something other than `end_turn` into the `stop_reason` column, which makes it easy to find in the file later.
 
 This is not busywork, and it is worth naming what you just did: **you instrumented code that already worked.** That is the normal case. Almost nobody adds logging to a system before the system exists — you add it the first time you need to answer a question the code cannot currently answer. Which is exactly where you are.
 
@@ -1273,6 +1301,7 @@ Then try a location that doesn't exist — `getWeather('Xyzzyville')` — and wa
 Back in §7.2 you used `jq` to turn a wall of JSON into something a human can read. JavaScript has the same thing built in:
 
 ```typescript
+// Edit — splice this into src/weather-test.ts; not a whole file.
 console.log(JSON.stringify(weather, null, 2));
 ```
 
@@ -1330,6 +1359,7 @@ Node inherited that. It's why network calls in JavaScript are asynchronous wheth
 ### What the keywords actually do
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 const weather = await getWeather('Denver');
 console.log(weather.temp_f);
 ```
@@ -1347,6 +1377,7 @@ The result is that asynchronous code **reads** top-to-bottom like synchronous co
 Forget `await` and you get the IOU instead of the value:
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 const weather = getWeather('Denver');   // no await — bug
 console.log(weather.temp_f);            // undefined
 ```
@@ -1360,6 +1391,7 @@ That is the whole argument for `"strict": true` and for running `typecheck` befo
 Asking for three cities one at a time takes three round trips:
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 const a = await getWeather('Denver');   // 200ms
 const b = await getWeather('Austin');   // 200ms
 const c = await getWeather('Boston');   // 200ms  → 600ms total
@@ -1368,6 +1400,7 @@ const c = await getWeather('Boston');   // 200ms  → 600ms total
 Or fire all three at once and wait for the set:
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 const [a, b, c] = await Promise.all([
   getWeather('Denver'),
   getWeather('Austin'),
@@ -2220,19 +2253,14 @@ Same model, same prompt, same tokens, same price, same words. The *only* differe
 Here's the whole file. It's Part 9's `assistant.ts` with three changes, marked in the comments:
 
 ```typescript
+// File — src/assistant-streaming.ts (the prose above names assistant.ts).
 import Anthropic from '@anthropic-ai/sdk';
 import * as readline from 'node:readline/promises';
 import { getWeather } from './weather.js';
 import { MODEL } from './config.js';
 import { logCall } from './usage.js';
 
-// Part 12 — the client options are configured once, here, where the client is
-// created. The SDK already retries connection failures, 408, 409, 429 and 5xx
-// twice by default; this makes it three with a hard 60s ceiling per call.
-const client = new Anthropic({
-  maxRetries: 3,
-  timeout: 60_000,
-});
+const client = new Anthropic();
 
 const SYSTEM = `You are a concise weather assistant. Answer directly and briefly.
 
@@ -2291,7 +2319,6 @@ async function respond(messages: Anthropic.MessageParam[], asked: string): Promi
     const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 1024,
-      cache_control: { type: 'ephemeral' },
       system: SYSTEM,
       tools,
       messages,
@@ -2368,12 +2395,7 @@ while (true) {
     console.log();
     await respond(messages, trimmed);
   } catch (err) {
-    // Part 12 — distinguish an API failure from a bug in your own code.
-    if (err instanceof Anthropic.APIError) {
-      console.error(`\nAPI error ${err.status}: ${err.message}\n`);
-    } else {
-      console.error(`\nSomething went wrong: ${(err as Error).message}\n`);
-    }
+    console.error(`\nSomething went wrong: ${(err as Error).message}\n`);
     // Roll the whole failed turn back, not just one message: respond() may
     // already have pushed the assistant's tool_use turn and the tool_results
     // that answer it. Popping one would leave a tool_use with no tool_result,
@@ -2416,6 +2438,7 @@ Recall the quadratic cost problem: every turn re-bills the whole transcript. Pro
 The simple form is one field. **This is illustrative, not a file to create** — the change you actually make is one added line in a call you already have. Here's the shape:
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 const response = await client.messages.create({
   model: 'claude-sonnet-5',
   max_tokens: 1024,
@@ -2428,6 +2451,7 @@ const response = await client.messages.create({
 To apply it to your real assistant, open `src/assistant-streaming.ts` and add that one line to the `client.messages.stream({ ... })` call inside `respond()`:
 
 ```typescript
+// Edit — splice this into src/assistant-streaming.ts; not a whole file.
     const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 1024,
@@ -2512,6 +2536,7 @@ The SDK retries connection failures, 408, 409, 429, and 5xx twice by default wit
 **This snippet is a pattern reference, not a new file** — it shows what defensive error handling looks like around a Claude call. Read it first, then make the two concrete edits below it.
 
 ```typescript
+// Illustrative — showing a shape, not a file to create.
 import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
@@ -2538,6 +2563,7 @@ try {
 **Edit 1 — the client options are set once**, where the client is created. In `src/assistant-streaming.ts`, change `const client = new Anthropic();` to:
 
 ```typescript
+// Edit — splice this into src/assistant-streaming.ts; not a whole file.
 const client = new Anthropic({
   maxRetries: 3,
   timeout: 60_000,
@@ -2549,6 +2575,7 @@ That's three retries instead of the default two, and a hard 60-second ceiling on
 **Edit 2 — tell an API failure apart from your own bug.** In the same file, the `catch` in the chat loop currently treats everything the same. Split it:
 
 ```typescript
+// Edit — splice this into src/assistant-streaming.ts; not a whole file.
   } catch (err) {
     if (err instanceof Anthropic.APIError) {
       console.error(`\nAPI error ${err.status}: ${err.message}\n`);

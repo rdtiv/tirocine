@@ -70,6 +70,7 @@ your account actually offers. Don't trust a document over a live API.
 | `npm run assistant:streaming` | `src/assistant-streaming.ts` | 10.3, 11, 12 | The assistant, streaming, with prompt caching and error handling. |
 | `npm run models` | `src/models.ts` | — | Lists every model ID your key can use. Bonus, not in the tutorial. |
 | `npm run typecheck` | — | — | Compiles everything without running it. No API key needed. |
+| `npm run verify:docs` | `scripts/check-docs.ts` | — | Repo infrastructure. Rebuilds `src/` from the tutorial's code blocks, compiles it, and diffs it back. Fails if the document and the code disagree. |
 
 ### Supporting files (not directly runnable)
 

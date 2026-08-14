@@ -18,7 +18,8 @@
     "assistant:streaming": "tsx --env-file=.env src/assistant-streaming.ts",
     "stream": "tsx --env-file=.env src/stream.ts",
     "injection": "tsx --env-file=.env src/injection.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:docs": "tsx scripts/check-docs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
