@@ -17,14 +17,15 @@
 
 You already built the weather assistant. Now rebuild it against Grok. Same program, same ledger, same Zod schema, same tool loop. Different client.
 
-**This is not a second 13-part course.** There is no Grok Part 5, no Grok bench, no second weather client. If an idea was real, it is still here. If it was a Claude spelling, it changed. That line is the whole document.
+**This is not a second 13-part course.** There is no Grok Part 5, no Grok bench, no second weather client. If an idea was real (transcript ownership, a tool loop, a schema, a ledger), it is still in this Grok rebuild. If the name was only Claude's API (`messages.create`, `tool_use`, `stop_reason`), xAI's Responses API renamed it.
 
 **This is not "use the AI SDK."** We call the OpenAI SDK pointed at `https://api.x.ai/v1`, the same way `src/index.ts` calls `@anthropic-ai/sdk`. One vendor client, one base URL.
 
-Two ideas are first-class, and both were already true on the Claude side — they just hid behind Claude's defaults:
+Two facts did not change when you switched from Claude to Grok. Claude's API hid both facts behind a single default.
 
-1. **Someone still has to remember. It is not necessarily you.** Claude's Messages API is stateless; you resent the array. Grok's Responses API can do that (`store: false` + a local `input` array) *or* remember the last turn for you (`previous_response_id`). Memory did not disappear. The owner moved.
-2. **Some tools run on their servers.** `get_weather` is yours. `web_search` is theirs. The loop you wrote in Part 9 only runs for the ones you own.
+**Conversation memory has to live somewhere.** The model still does not keep a session in its weights. In `src/chat.ts` you keep a `messages` array and resend it every turn. Grok can do that same program: set `store: false` and keep an `input` array in your process. Grok can also hold the last turn on xAI's side: you send only the new line plus `previous_response_id`. Memory did not go away. You are choosing who holds the transcript. You will type both paths in §4. Tell the program your name, then ask what your name is. Grok answers either way. Watch the `[usage]` line: `in` and `context` climb when you resend the array. Those two numbers climb less when xAI holds the prefix.
+
+**Some tools your program runs. Some tools xAI runs.** `get_weather` is your function. When Grok wants it, `output` contains a `function_call` item, and your `while` loop runs `getWeather()` the way Part 9 did. `web_search` is xAI's function. When Grok wants it, `output` contains a `web_search_call` that is already finished — a receipt with the query and the sources. Do not put `web_search_call` in the loop. There is nothing for you to execute. You will see this in §7: the search-only run prints item types and source URLs and never prints `[tool]`. The mixed run prints `[tool] get_weather` only if Grok asked your function.
 
 ### Cost
 
@@ -46,7 +47,7 @@ The $5 / 1,000 `web_search` fee is **not** in `usage.csv`. Token rows only.
 
 ## 1. Mapping table
 
-If a difference is not in this table, the table is wrong.
+This table is the spelling. Two rows are not spelling — **Who holds the transcript** and **Who runs the tool**. Read those first. If a difference is not in this table, the table is wrong.
 
 | | Claude (what you have) | Grok Responses (what you are writing) |
 |---|---|---|
@@ -59,7 +60,7 @@ If a difference is not in this table, the table is wrong.
 | What comes back | `content` — array of blocks | `output` — array of items. A text turn is `[reasoning, message]`. A tool turn is `[reasoning, function_call]` — no message. |
 | Convenient text | there is none; you wrote `textFrom` | `output_text` is set on a text turn and **empty** on a `function_call` turn. Walk `output`. |
 | Text helper | `src/text.ts` walks `content` | `src/grok-text.ts` walks `output` |
-| Memory | you resent the array | you resent the array (`store: false`) **or** you send `previous_response_id` and they remember the last turn |
+| Who holds the transcript | You. You keep `messages` and resend every turn. There is no other option. | You, if you set `store: false` and keep `input`. Or xAI, if you send `previous_response_id` and do **not** set `store: false`. Memory still exists. The holder changed. |
 | Tool request | `block.type === 'tool_use'` | `item.type === 'function_call'` |
 | Arguments | `block.input` — already an object | `item.arguments` — a **JSON string**. `JSON.parse` it. |
 | Binding id | `block.id` → `tool_use_id` | `item.call_id` → `call_id` |
@@ -67,9 +68,9 @@ If a difference is not in this table, the table is wrong.
 | Tool errors | `{ is_error: true, content }` | no `is_error` field — put the error in `output` |
 | Tool schema field | `input_schema` | `parameters` |
 | Client tool shape | `{ name, description, input_schema }` | `{ type: 'function', name, description, parameters }` — **not** Chat Completions `{ type: 'function', function: { ... } }` |
-| Who runs the tool | you, always | you, for `function_call`. **They** run `web_search`. Loop only for `function_call`. |
+| Who runs the tool | You, always. Every `tool_use` goes through your `while` loop. | You run `function_call` (`get_weather`). xAI runs `web_search`. A `web_search_call` item is a receipt, not a request. The `while` loop keys on `function_call` only. |
 | Structured output | `messages.parse` + `zodOutputFormat`, field `parsed_output` | `responses.parse` + `zodTextFormat` from `openai/helpers/zod`, field `output_parsed` |
-| Caching | `cache_control: { type: 'ephemeral' }` on a block | `prompt_cache_key` is a first-class Responses field. No `extra_body`. No `@ts-expect-error`. |
+| Caching | You opt in with `cache_control: { type: 'ephemeral' }` on a block. | You may set `prompt_cache_key`. Grok also caches a stable prefix on its own. This is a price, not a transcript. `store` / `previous_response_id` still decide who remembers the conversation. |
 | Cache accounting | `input_tokens` is the uncached remainder; `cache_read` / `cache_write` sit next to it | `input_tokens` is the **full** prompt; `cached_tokens` is a subset. `fromResponses` subtracts so the CSV keeps Claude's meaning. |
 | Stop signal | `stop_reason === 'tool_use'` | `output` contains a `function_call` item |
 | Ledger | `logCall` in `src/usage.ts` | `logGrokCall` in `src/grok-usage.ts`. Same `usage.csv`. Never import `./usage.js`. |
@@ -244,9 +245,9 @@ export function logGrokCall(
 }
 ```
 
-Two things to notice, because they are the whole reason this file exists:
+Two things to notice, because these two facts are the whole reason this file exists:
 
-- **Same fifteen columns, same header check.** A Grok row and a Claude row sit in one spreadsheet. `npm run usage` adds them up.
+- **Same fifteen columns, same header check.** A Grok row and a Claude row sit in one spreadsheet. `npm run usage` adds both kinds of row.
 - **`fromResponses` subtracts.** Verified 2026-08-14: Grok's `input_tokens` is the full prompt and `cached_tokens` is a subset. Claude's CSV column is the uncached remainder. Subtract so a mixed file does not lie.
 
 The model ID, in one place. Create `src/grok-config.ts`:
@@ -359,19 +360,40 @@ Add to `package.json` scripts:
 npm run grok
 ```
 
-You should get a short answer about heat index and a `[usage]` line. Uncomment `console.log(response)` once and read the object: `output`, `output_text`, `usage.input_tokens`, `usage.input_tokens_details.cached_tokens`. Then put it back.
+You should get a short answer about heat index and a `[usage]` line.
+
+`store: false` means xAI forgets this turn when the call returns. You did not keep an `input` array yet, so nothing remembers this question. That is fine for a one-shot. §4 will either keep the array (still `store: false`) or drop `store: false` and send `previous_response_id`. Uncomment `console.log(response)` once and find `id`. Then put the log back.
 
 The client is the difference you can point at. Claude's SDK found its own key. This one needs `apiKey`, `baseURL`, and a 360-second timeout because reasoning models can think for minutes. That timeout is not a retries lesson — there is no Grok Part 12 in this document.
+
+### If it failed
+
+| Error | Cause |
+|---|---|
+| missing `XAI_API_KEY`, or the call fails with no key | `.env` has no `XAI_API_KEY`, or you forgot `--env-file`. The OpenAI SDK does **not** read `XAI_API_KEY` itself. You pass `apiKey: process.env.XAI_API_KEY`. |
+| `Cannot find module 'openai'` | You have not run `npm install openai`. If you cloned this repo, run `npm install` instead. |
+| `Missing script: "grok"` | The `"grok"` line is not in `package.json`. Add it, save the file, then run `npm run grok` again. |
+| `401` | The key is wrong or revoked. Get a new one at [console.x.ai](https://console.x.ai). |
+
+---
+
+> ### ✓ Checkpoint
+> Before moving on, you should be able to say out loud:
+> - Why `output` is an array
+> - Why `output_text` will be empty on a `function_call` turn
+> - What `store: false` means
+>
+> If you ran the code but cannot answer these, reread.
 
 ---
 
 ## 4. Memory fork
 
-Part 4's lesson did not move: **someone has to remember.** Claude only offered one owner — you. Grok offers two.
+The transcript must live somewhere. Claude gives you one holder — your program. Grok gives you two.
 
-**First** — and this is the default in the file — `store: false` plus a local `input` array. You resent the transcript. Cost climbs every turn. Same program as `src/chat.ts`.
+The default `MEMORY = 'local'` is `store: false` plus a local `input` array. Your program keeps the transcript and resends it every turn. Same program as `src/chat.ts`.
 
-**Then** — flip `MEMORY` to `'server'`. You send only the new line and `previous_response_id`. xAI stored the last turn. Verified 2026-08-14: a second turn recalled a codeword. Someone still remembered. It was not you.
+Then change `MEMORY` to `'server'`. Save the file. Stop the process (Ctrl+C). Run `npm run grok:chat` again. You send only the new line and `previous_response_id`. Do not set `store: false` on the server path.
 
 Create `src/grok-chat.ts`:
 
@@ -474,11 +496,23 @@ Add to `package.json` scripts:
 npm run grok:chat
 ```
 
-Tell it your name, then ask what your name is. With `MEMORY = 'local'` it knows because you re-sent the array. Flip to `'server'`, restart, do it again. It knows because they kept the turn.
+Tell the program your name, then ask what your name is. Grok answers.
 
-Do not set `store: false` on the server path. The id has to point at something they kept.
+Then change `MEMORY` to `'server'`. Save the file. Stop the process (Ctrl+C). Run `npm run grok:chat` again. Tell the program your name, then ask what your name is. Grok answers again.
 
-Watch the `[usage]` line either way: `in` and `context` climb on the local path because you are resending. On the server path the climb is smaller — they are holding the prefix. Someone is still paying to remember. The bill just moved.
+Watch `[usage]`. On the local path, `in` and `context` climb because you resend the array. On the server path the climb is smaller, because xAI holds the prefix and you still pay for those tokens. The conversation still has a transcript. The holder changed.
+
+Do not set `store: false` on the server path. The id has to point at a turn xAI kept.
+
+---
+
+> ### ✓ Checkpoint
+> Before moving on, you should be able to say out loud:
+> - Who holds the transcript on the local path
+> - Who holds the transcript on the server path
+> - Why you must restart after flipping `MEMORY`
+>
+> If you ran the code but cannot answer these, reread.
 
 ---
 
@@ -568,7 +602,9 @@ You should see Chicago, fahrenheit, clothing_advice. If the shape is missing, th
 
 ## 6. Tool loop
 
-The contract has not changed. **The model never executes your function.** It emits a request. Your code runs it. The result goes back.
+The Part 9 contract still holds for **your** function. Grok does not run `getWeather()`. Grok emits a `function_call`. Your program runs `getWeather()`. The result goes back.
+
+This file has only `get_weather`, so the `while` keys on `function_call`. §7 adds `web_search`. One question that calls the tool writes two `[usage]` lines: one for the `function_call` turn, one for the final text turn.
 
 What changed is every name in the loop, and one type:
 
@@ -743,11 +779,13 @@ Then change the question, one at a time, same three probes as Part 9:
 
 ## 7. Who runs the tool
 
-`get_weather` runs on your machine. `web_search` runs on theirs.
+`get_weather` is your function. `web_search` is xAI's function.
 
-A `web_search_call` item is a receipt — action, query, sources — not a request for you to do anything. The finished output of a search-only turn is `[web_search_call, reasoning, message]`. Citations exist. **There is no while loop.**
+A `web_search_call` item is a receipt — action, query, sources — not a request for you to execute anything.
 
-If you later combine search with `get_weather`, the loop you already wrote is still correct **only if it keys on `function_call`.** Loop on every tool-shaped item and you will wait forever to "run" a search that already ran.
+The search-only run has no `while`. xAI already finished the search. The finished output of a search-only turn is `[web_search_call, reasoning, message]`. Citations exist.
+
+The mixed run keeps the `while`. Key on `function_call` only. A `web_search_call` is already done. Loop on every tool-shaped item and you will wait forever to "run" a search that already ran.
 
 The $5 / 1,000 search fee is not in `usage.csv`. The ledger records tokens. That line item lives in the xAI console.
 
@@ -915,17 +953,26 @@ Add to `package.json` scripts:
 npm run grok:search
 ```
 
-First block: types, text, sources. No `[tool]` line — you had nothing to run.
+First block: item types, source URLs, and text. No `[tool]` line. You had nothing to run.
 
-Second block: a `[tool] get_weather` line if the model asked for a live reading, and no attempt to execute `web_search_call`.
+Second block: a `[tool] get_weather` line only if Grok asked your function. Your program does not execute `web_search_call`.
 
-This file is the one with no Claude twin. The rest of the transfer is a rebuild. This section is the idea Claude never handed you: **some tools run on their servers.**
+This file has no Claude twin. The rest of the transfer is a rebuild. This section is the idea Claude never handed you: some tools your program runs, and some tools xAI runs.
+
+---
+
+> ### ✓ Checkpoint
+> Before moving on, you should be able to say out loud:
+> - What a `web_search_call` is
+> - When `[tool]` should appear
+>
+> If you ran the code but cannot answer these, reread.
 
 ---
 
 ## 8. Finished assistant
 
-Part 4's chat loop, Part 9's tool loop, nested. Local weather only. **No `web_search`.** The finished program should be the same program as `src/assistant.ts` — your function, your memory, your loop — so you can point at every difference and none of them are "and also we added search."
+Part 4's chat loop, Part 9's tool loop, nested. Local weather only. **No `web_search`.** This file is a local twin of `src/assistant.ts` on purpose. Search still lives in `src/grok-search.ts`.
 
 The instructions are the same spirit as `assistant.ts`. The spelling is Responses.
 
@@ -1140,13 +1187,15 @@ Try the same sequence:
 > which one should I visit this weekend
 ```
 
-The third question has no city and calls no tool. Grok answers from the two lookups already sitting in `input`. You own the memory. You ran the tool. That is the finished transfer.
+The third question has no city and prints no `[tool]`. Grok answers from the two lookups already sitting in `input`.
 
 ---
 
 ## 9. Caching note
 
-This is not Part 11.
+This is a **price** note, not a third memory path. `store` and `previous_response_id` decide who holds the transcript. Caching is a cheaper prefix.
+
+Do not add `prompt_cache_key` to `src/grok-assistant.ts` in this lesson.
 
 Claude's cache is a block annotation: `cache_control: { type: 'ephemeral' }` on a system block or a tool. Grok's cache is a first-class Responses field:
 
@@ -1162,9 +1211,9 @@ const response = await client.responses.create({
 
 No `extra_body`. No `@ts-expect-error`. `prompt_cache_key` is on the type.
 
-Grok also caches automatically on a stable prefix. You do not have to opt in the way Part 11 opted in. When a hit lands, `usage.input_tokens_details.cached_tokens` is a **subset** of `input_tokens`. `fromResponses` already subtracts, and `cost_usd` already uses the $0.50 cached rate. The savings are in the row. You do not need a second formula.
+Grok also caches a stable prefix on its own. You do not have to opt in the way Part 11 opted in. When a hit lands, `usage.input_tokens_details.cached_tokens` is a **subset** of `input_tokens`. `fromResponses` already subtracts, and `cost_usd` already uses the $0.50 cached rate. The savings are in the row. You do not need a second formula.
 
-`npm run usage` will still print its caching paragraph in Claude's voice — 1.25× writes, 0.1× reads, "see Part 11." That paragraph is about Claude rows. Grok rows have `cache_write = 0` and a `cache_read` that is already priced. Believe `cost_usd`.
+`npm run usage` will still print its caching paragraph in Claude's voice — 1.25× writes, 0.1× reads, "see Part 11." That paragraph is about Claude rows. Grok rows have `cache_write = 0` and a `cache_read` that is already priced. Read `cost_usd` on Grok rows.
 
 ---
 
@@ -1248,9 +1297,9 @@ Eight seconds of blank screen feels broken. Eight seconds of text arriving feels
 
 ## 11. Injection coda
 
-Tool output is untrusted data. That was the lesson in `src/injection.ts`. The vendor did not fix it.
+Switching vendors did not fix prompt injection. xAI does not sanitize tool results.
 
-Same `POISON`. `BOUNDARY` is in the file and commented out. Uncommenting it is a demonstration that model-level resistance is not a security control. It is not a fix.
+Same `POISON`. `BOUNDARY` is in the file and commented out. Find out whether **Grok** obeys instructions that arrived inside the tool result your program sent back.
 
 Create `src/grok-injection.ts`:
 
@@ -1384,29 +1433,29 @@ Add to `package.json` scripts:
 npm run grok:injection
 ```
 
-You ask about Denver. Nobody typed anything about pirates. Find out whether the program obeys a stranger.
+You asked about Denver. Nobody typed anything about pirates. Grok may or may not answer as a pirate. Do not take a normal forecast as "you typed it wrong." Then uncomment `BOUNDARY` and run `npm run grok:injection` again. That is not a fix. Model-level resistance is not a security control.
 
 ---
 
 ## 12. Where this sits
 
-You now have two finished assistants in one repo. Do not merge them. `src/assistant.ts` is the Claude program. `src/grok-assistant.ts` is the Grok program. Run them back to back and ask the same question.
+You now have two finished assistants in one repo. Do not merge the two assistants. `src/assistant.ts` is the Claude program. `src/grok-assistant.ts` is the Grok program. Run both programs back to back and ask the same question.
 
 `npm run usage` still works on a mixed `usage.csv`. Claude rows and Grok rows share fifteen columns. The report's cache paragraph is the Claude story — 1.25× writes, 0.1× reads, Part 11. Grok's cache savings are already inside `cost_usd` because `fromResponses` subtracted and `costOfGrok` priced the cached slice at $0.50.
 
-What transferred:
+Say these out loud:
 
-- You own the memory, unless you hand it to them. Someone still remembers.
-- The model never runs your function. Some other tools they run themselves. Loop only for the ones you own.
-- Structured output is a schema, not a plea.
-- Tool results are data. Data can contain instructions.
-- Tokens are facts. Prices are a snapshot. The ledger is how you know what you spent.
+- Who holds the transcript on the local path, and who holds it on the server path?
+- What is the difference between a `function_call` and a `web_search_call`?
+- Why is a cache hit not a third memory path?
+- The Zod schema in `src/grok-parse.ts` is the same schema as `src/parse-request.ts`. Why?
+- What does `POISON` prove?
 
 What did not transfer, and should not:
 
 - `src/usage.ts` / `src/usage-report.ts` / the code fences in [the TypeScript build](typescript.md). Those stay Claude's.
-- Truncate, bench, a second weather client, a Grok usage-report, retries-as-a-part. They were Claude-shaped lessons or they are not needed twice.
+- Truncate, bench, a second weather client, a Grok usage-report, retries-as-a-part. Those were Claude-shaped lessons or are not needed twice.
 
-`src/grok-models.ts` is a documented extra, the twin of `src/models.ts`. It is not built by this document. Add `"grok:models": "tsx --env-file=.env src/grok-models.ts"` if you want it, then run `npm run grok:models` when a model ID 404s.
+`src/grok-models.ts` is a documented extra. It exists in the cloned repo. If you typed this lesson from the fences, you can skip it, or copy the idea from `src/models.ts` later. If you cloned, the `"grok:models"` script is already in `package.json`.
 
-When you are done here, [the Python build](python.md) rebuilds the Claude program again, to see which ideas were real. That document is still mid-rework. The ideas you just isolated — memory has an owner, some tools are not yours, a schema is not prose — are the ones that will still be standing when the spelling changes a third time.
+When you are done here, [the Python build](python.md) rebuilds the Claude program again, to see which ideas were real. That document is still mid-rework. Transcript ownership, a tool loop, a schema, and a ledger will still be standing when the spelling changes a third time.
