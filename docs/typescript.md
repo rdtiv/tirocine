@@ -550,7 +550,8 @@ type ResponsesUsage = {
 };
 
 /**
- * Verified after live probe — treat as provisional until WP2.
+ * Verified 2026-08-14 against a live Responses call: input_tokens was
+ * the full prompt and cached_tokens was a subset. Subtract.
  *
  * Responses `input_tokens` is the FULL prompt; `cached_tokens` is a subset.
  * Subtract so the CSV's input_tokens stays the uncached remainder.
