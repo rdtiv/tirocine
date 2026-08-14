@@ -41,6 +41,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -163,14 +164,22 @@ function stripTypeScript(src: string): string {
  * its own lines — nothing but whitespace before it, nothing but whitespace
  * after its closing quotes. That is a docstring.
  *
- * The "alone on its line" test is what keeps this safe. A multi-line value
- * like `POISON = """..."""` has `POISON = ` in front of it and is kept, and so
- * is a parenthesised run of single-quoted strings, because only triple quotes
- * qualify.
+ * Two tests keep that safe. The string must sit alone on its line, which keeps
+ * `POISON = """..."""`; and it must be at bracket depth zero, which keeps the
+ * form where the quotes open on their own line inside an expression:
+ *
+ *   POISON = (
+ *       """still a value, not a docstring"""
+ *   )
+ *
+ * Without the depth test that string would vanish from both sides of the diff,
+ * and the document could then disagree with the file about it and still pass —
+ * a hole in the one gate whose job is to prevent exactly that.
  */
 function stripPython(src: string): string {
   let out = '';
   let i = 0;
+  let depth = 0;
 
   /** Is everything emitted since the last newline just whitespace? */
   const atLineStart = (): boolean => {
@@ -183,7 +192,7 @@ function stripPython(src: string): string {
     const triple = src.slice(i, i + 3);
 
     if (triple === '"""' || triple === "'''") {
-      const alone = atLineStart();
+      const alone = atLineStart() && depth === 0;
       let body = triple;
       let j = i + 3;
       while (j < src.length && src.slice(j, j + 3) !== triple) {
@@ -236,6 +245,11 @@ function stripPython(src: string): string {
       while (i < src.length && src[i] !== '\n') i++;
       continue;
     }
+
+    // Bracket depth, counted outside strings and comments, so the docstring
+    // test above can tell a statement from the middle of an expression.
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
 
     out += c;
     i++;
@@ -354,10 +368,16 @@ const LANGUAGES: Language[] = [
       } catch {
         return [{ file: '', line: 0, message: out.trim() }];
       }
+      // realpathSync matters: on macOS mkdtempSync hands back /var/folders/...
+      // while pyright reports the resolved /private/var/folders/... . Without
+      // it, relative() produces a ../../.. path, the lookup into `versions`
+      // misses, and a failing block reports a temp directory instead of the
+      // document line — exactly when naming the line matters most.
+      const root = realpathSync(work);
       return (parsed.generalDiagnostics ?? [])
         .filter((d) => d.severity === 'error')
         .map((d) => ({
-          file: relative(work, d.file),
+          file: relative(root, d.file),
           line: (d.range?.start.line ?? 0) + 1,
           message: d.message.split('\n')[0]!,
         }));

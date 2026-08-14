@@ -65,10 +65,24 @@ def main() -> None:
     with LEDGER.open("r", encoding="utf-8-sig", newline="") as f:
         lines = list(csv.reader(f))
 
+    # A file that exists but is empty is a real state: a run killed between
+    # creating usage.csv and writing the header. src/usage-report.ts survives
+    # it, so this must too — the two reports have to agree on every input,
+    # not just the happy one.
+    if not lines:
+        print(f"No rows in {LEDGER.name} yet. Run any script that calls Claude, then try again.")
+        return
+
     headers = lines[0]
 
     def get(cells: list[str], name: str) -> str:
-        return cells[headers.index(name)] if name in headers else ""
+        # Missing column, or a row shorter than the header — the last row of a
+        # ledger whose append was interrupted. Both read as empty rather than
+        # raising, matching `?? ''` in src/usage-report.ts.
+        if name not in headers:
+            return ""
+        i = headers.index(name)
+        return cells[i] if i < len(cells) else ""
 
     rows = [
         Row(
