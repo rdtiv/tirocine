@@ -1,12 +1,12 @@
 # Weatherwise — A Claude-Powered Weather Assistant in TypeScript
 
 > **The weatherwise series**
-> 1. Setup — [Windows](weatherwise-setup-windows.md) · [macOS](weatherwise-setup-mac.md)
-> 2. [The TypeScript build](weatherwise-typescript.md) — the assistant, start to finish
-> 3. [The Python build](weatherwise-python.md) — the same program again, to see which ideas were real
-> 4. [The app](weatherwise-app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 1. Setup — [Windows](setup-windows.md) · [macOS](setup-mac.md)
+> 2. **The TypeScript build** — the assistant, start to finish *(you are here)*
+> 3. [The Python build](python.md) — the same program again, to see which ideas were real
+> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
-**Before you start:** finish the setup for your machine — [Windows](weatherwise-setup-windows.md) or [macOS](weatherwise-setup-mac.md). This document assumes you have a terminal, Node 20.6+, Git, Cursor, Claude Code, and both API keys in a `.env` file.
+**Before you start:** finish the setup for your machine — [Windows](setup-windows.md) or [macOS](setup-mac.md). This document assumes you have a terminal, Node 20.6+, Git, Cursor, Claude Code, and both API keys in a `.env` file.
 
 **What you'll build:** `weatherwise` — a command-line assistant that answers plain-English weather questions. It starts as ten lines and ends as a program that runs, waits for you, looks up live weather when it needs to, streams its answers back as it thinks, and keeps the conversation going until you tell it to stop. Like the chat window on claude.ai, except you built it and it can reach the outside world.
 
@@ -14,7 +14,7 @@
 
 1. What a web API is — a URL that returns data.
 2. What a large language model is as a *system component* — a stateless, priced, probabilistic function — and how to build reliably on top of one.
-3. Which of those ideas belong to the language you happened to use, and which are real. [The Python build](weatherwise-python.md) rebuilds this program to make that line visible.
+3. Which of those ideas belong to the language you happened to use, and which are real. [The Python build](python.md) rebuilds this program to make that line visible.
 
 **Time:** a few evenings. Don't rush; understanding beats finishing.
 
@@ -1317,7 +1317,7 @@ Your computer executes maybe a billion instructions per second. A network reques
 
 So: what should the program do while it waits?
 
-**Synchronous** means "one thing at a time, in order." Line 2 does not start until line 1 is completely finished. It's how you'd naturally assume code works, and it's how [the Python build](weatherwise-python.md) works.
+**Synchronous** means "one thing at a time, in order." Line 2 does not start until line 1 is completely finished. It's how you'd naturally assume code works, and it's how [the Python build](python.md) works.
 
 **Asynchronous** means the program can start something slow, go do other work, and come back when the slow thing finishes.
 
@@ -2656,7 +2656,7 @@ Roughly in order of difficulty:
 2. **Cache weather results.** Store each lookup for ten minutes. Asking about Denver twice in one conversation shouldn't hit the network twice.
 3. **Trim the conversation.** Long chats grow without bound. Drop the oldest turns once history passes some size, and watch what it does to cost and to Claude's memory of the conversation.
 4. **Add a non-weather tool.** Air quality, or the API's `/v1/astronomy.json` for sunrise and sunset. Watch tool selection get harder as the list grows, and notice descriptions start doing real work.
-5. **Put a web UI on it.** A Next.js app with an API route, deployed. Keep every API call server-side — neither key may ever reach the browser. That's the whole of [the app build](weatherwise-app.md).
+5. **Put a web UI on it.** A Next.js app with an API route, deployed. Keep every API call server-side — neither key may ever reach the browser. That's the whole of [the app build](app.md).
 
 ## Skills worth building deliberately
 

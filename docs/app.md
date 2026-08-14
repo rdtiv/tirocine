@@ -1,12 +1,12 @@
 # Weatherwise — From Script to Deployed App
 
 > **The weatherwise series**
-> 1. Setup — [Windows](weatherwise-setup-windows.md) · [macOS](weatherwise-setup-mac.md)
-> 2. [The TypeScript build](weatherwise-typescript.md) — the assistant, start to finish
-> 3. [The Python build](weatherwise-python.md) — the same program again, to see which ideas were real
-> 4. [The app](weatherwise-app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 1. Setup — [Windows](setup-windows.md) · [macOS](setup-mac.md)
+> 2. [The TypeScript build](typescript.md) — the assistant, start to finish
+> 3. [The Python build](python.md) — the same program again, to see which ideas were real
+> 4. **The app** — lifting it onto the web with Next.js, the AI SDK, and Vercel *(you are here)*
 
-**Before you start:** finish [the TypeScript build](weatherwise-typescript.md). This document takes the assistant you already have and puts it on the web.
+**Before you start:** finish [the TypeScript build](typescript.md). This document takes the assistant you already have and puts it on the web.
 
 > **This document is a stub.** It hasn't been written yet.
 

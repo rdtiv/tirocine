@@ -1,12 +1,12 @@
 # Weatherwise — The Same Program in Python
 
 > **The weatherwise series**
-> 1. Setup — [Windows](weatherwise-setup-windows.md) · [macOS](weatherwise-setup-mac.md)
-> 2. [The TypeScript build](weatherwise-typescript.md) — the assistant, start to finish
-> 3. [The Python build](weatherwise-python.md) — the same program again, to see which ideas were real
-> 4. [The app](weatherwise-app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 1. Setup — [Windows](setup-windows.md) · [macOS](setup-mac.md)
+> 2. [The TypeScript build](typescript.md) — the assistant, start to finish
+> 3. **The Python build** — the same program again, to see which ideas were real *(you are here)*
+> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
-**Before you start:** finish [the TypeScript build](weatherwise-typescript.md). This document assumes you already have `src/weather.ts`, `src/agent.ts`, and the rest in front of you to compare against — the whole point is the comparison.
+**Before you start:** finish [the TypeScript build](typescript.md). This document assumes you already have `src/weather.ts`, `src/agent.ts`, and the rest in front of you to compare against — the whole point is the comparison.
 
 > **This document is mid-rework.** The walkthrough below is sound, but two
 > things are outstanding and worth knowing before you rely on it:
@@ -64,7 +64,7 @@ uv run --env-file .env main.py
 
 ## 2. The weather client
 
-Compare this to `src/weather.ts` from [the TypeScript build](weatherwise-typescript.md) side by side in Cursor. Same shape, different spelling.
+Compare this to `src/weather.ts` from [the TypeScript build](typescript.md) side by side in Cursor. Same shape, different spelling.
 
 ```python
 import os

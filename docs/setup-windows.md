@@ -1,16 +1,16 @@
 # Weatherwise Setup — Windows
 
 > **The weatherwise series**
-> 1. Setup — [Windows](weatherwise-setup-windows.md) · [macOS](weatherwise-setup-mac.md)
-> 2. [The TypeScript build](weatherwise-typescript.md) — the assistant, start to finish
-> 3. [The Python build](weatherwise-python.md) — the same program again, to see which ideas were real
-> 4. [The app](weatherwise-app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 1. Setup — **Windows** · [macOS](setup-mac.md) *(you are here)*
+> 2. [The TypeScript build](typescript.md) — the assistant, start to finish
+> 3. [The Python build](python.md) — the same program again, to see which ideas were real
+> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
 **Who this is for:** your first real project as a developer. You're on Windows 10 or 11, you have Claude Code and Cursor, and you have not shipped code before.
 
 **What this covers:** getting the machine ready — a terminal, Node, Git, GitHub, Claude Code, Cursor, and the two API keys. Nothing here is about Claude yet. Budget about 40 minutes.
 
-**When you're done,** go to [the TypeScript build](weatherwise-typescript.md).
+**When you're done,** go to [the TypeScript build](typescript.md).
 
 > **A note on the machine.** Everything in this guide works on Windows, and you should not wait for different hardware to start. But it's worth knowing the landscape: most AI development tooling ships on macOS several months before Windows, and nearly every tutorial and video you'll find was recorded on a Mac. You will occasionally hit a step where your screen doesn't match what you're watching. That's the environment, not you. If a Mac is ever an option, take it — but don't let its absence stop you today.
 

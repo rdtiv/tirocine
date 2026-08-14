@@ -1,14 +1,14 @@
 # Weatherwise Setup — macOS
 
 > **The weatherwise series**
-> 1. Setup — [Windows](weatherwise-setup-windows.md) · [macOS](weatherwise-setup-mac.md)
-> 2. [The TypeScript build](weatherwise-typescript.md) — the assistant, start to finish
-> 3. [The Python build](weatherwise-python.md) — the same program again, to see which ideas were real
-> 4. [The app](weatherwise-app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 1. Setup — [Windows](setup-windows.md) · **macOS** *(you are here)*
+> 2. [The TypeScript build](typescript.md) — the assistant, start to finish
+> 3. [The Python build](python.md) — the same program again, to see which ideas were real
+> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
 > **This document is a stub.** The macOS setup has not been written into this
 > series yet. Until it is, follow your existing macOS front matter, then pick up
-> at [the TypeScript build](weatherwise-typescript.md).
+> at [the TypeScript build](typescript.md).
 
 **To be equivalent to the Windows setup, this needs to cover:**
 
