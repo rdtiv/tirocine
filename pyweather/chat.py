@@ -18,8 +18,8 @@ Against src/chat.ts, the loop itself is the interesting difference. Node
 needs a `readline` interface plus `await rl.question(...)` because reading a
 line of stdin is asynchronous there. Python's `input()` is a built-in,
 synchronous, blocking call — no interface to construct, no import beyond the
-standard library doing it implicitly. `EOFError` is Python's Ctrl+D, the
-direct equivalent of the `try`/`catch` around `rl.question`.
+standard library doing it implicitly. `EOFError` is Python's Ctrl+D (Ctrl+Z
+on Windows), the direct equivalent of the `try`/`catch` around `rl.question`.
 """
 
 from anthropic import Anthropic
@@ -39,7 +39,7 @@ def main() -> None:
         try:
             user_input = input("> ")
         except EOFError:
-            break  # stdin closed — you pressed Ctrl+D, or input was piped in and ran out.
+            break  # stdin closed — you pressed Ctrl+D (Ctrl+Z on Windows), or input was piped in and ran out.
 
         if user_input.strip().lower() == "exit":
             break
@@ -56,9 +56,10 @@ def main() -> None:
         log_call("chat", "claude-sonnet-5", user_input, response)
 
         # Note: there is no try/except around this call yet. If your API key
-        # is wrong, this crashes with a stack trace. That's deliberate — Part
-        # 12 covers error handling, and pyweather/assistant.py shows the
-        # fixed version.
+        # is wrong, this crashes with a stack trace. That's deliberate —
+        # pyweather/assistant.py adds a basic rollback try/except at Part 9,
+        # and Part 12's real error handling (APIStatusError, APIConnectionError,
+        # max_retries, timeout) lives in pyweather/assistant_streaming.py.
 
         # Push back the whole content list, not a flattened string.
         messages.append({"role": "assistant", "content": response.content})

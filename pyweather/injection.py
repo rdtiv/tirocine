@@ -96,13 +96,29 @@ def main() -> None:
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": run_tool(block.name, block.input),
-                }
-            )
+
+            print(f"[tool] {block.name}", block.input)
+
+            try:
+                results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": run_tool(block.name, block.input),
+                    }
+                )
+            except Exception as err:
+                # Errors go BACK to the model, not up the stack — same as
+                # agent.py. Without this, a missing WEATHER_API_KEY crashes
+                # the process before the injection demo produces any output.
+                results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": f"Error: {err}",
+                        "is_error": True,
+                    }
+                )
 
         messages.append({"role": "user", "content": results})
 

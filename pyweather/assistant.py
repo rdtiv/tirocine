@@ -109,7 +109,10 @@ def respond(client: Anthropic, messages: list[MessageParam], asked: str) -> str:
             if block.type != "tool_use":
                 continue
 
-            print(f"  ...looking up {json.dumps(block.input)}")
+            # ensure_ascii=False so a location like "Zürich" prints as typed,
+            # matching JSON.stringify in src/assistant.ts instead of escaping
+            # it to a \uXXXX sequence.
+            print(f"  ...looking up {json.dumps(block.input, ensure_ascii=False)}")
 
             try:
                 results.append(
@@ -155,7 +158,7 @@ def main() -> None:
         try:
             user_input = input("> ")
         except EOFError:
-            break  # stdin closed — you pressed Ctrl+D, or input was piped in and ran out.
+            break  # stdin closed — you pressed Ctrl+D (Ctrl+Z on Windows), or input was piped in and ran out.
 
         trimmed = user_input.strip()
 

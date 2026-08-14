@@ -9,16 +9,31 @@ tutorial series lives in `docs/`. Two documents have companion code: `src/` is
 built entirely by `docs/typescript.md`, and `pyweather/` is built entirely by
 `docs/python.md`. The setup and app documents have no code here yet.
 
-It is a tutorial, not an application: every file in `src/` and `pyweather/` is
-a single, independently runnable lesson, numbered by tutorial Part. There is no
-shared entry point — each script is standalone, not imported into a larger
-program (except for the small set of shared helpers noted below).
+It is a tutorial, not an application: every file in `src/` and `pyweather/`,
+except the small set of shared helpers noted below, is a single, independently
+runnable lesson, numbered by tutorial Part. There is no shared entry point —
+each script is standalone, not imported into a larger program; the helpers are
+the one thing that is imported rather than run.
 
 **`pyweather/` is the same program as `src/`, written a second time.** The
-Python document is not a Python tutorial and introduces no new concepts; its
-entire value is the comparison, so `pyweather/x.py` should stay recognisably
-the same lesson as its `src/x.ts` counterpart. When you change one side, ask
-whether the other should change too. The one thing that is deliberately *not*
+Python document introduces no new *Claude* concepts — the reader has already
+met them all in document 2 — so `pyweather/x.py` should stay recognisably the
+same lesson as its `src/` counterpart.
+
+It does, however, teach Python, because it assumes the reader knows none. Its
+spine is a per-Part `Idea | TypeScript | Python` table: the left column is the
+language-independent truth, the other two are spellings. Short "New to Python"
+notes cover only what this program needs (virtual environments, packages and
+imports, `main()` and entry points, type hints, pydantic vs `@dataclass`,
+`try`/`except`, `with`, f-strings), each anchored to its TypeScript equivalent.
+**Keep that shape when editing** — a Python explanation that doesn't tie back
+to something in `src/` is usually out of scope for this document. Most share a base name
+(`agent.py`↔`agent.ts`); the exceptions are `main.py`↔`index.ts`, and the
+hyphenated TypeScript names, which become underscored in Python because
+hyphens aren't legal in module names — `weather_test.py`↔`weather-test.ts`,
+`parse_request.py`↔`parse-request.ts`, `usage_report.py`↔`usage-report.ts`,
+`assistant_streaming.py`↔`assistant-streaming.ts`. When you change one side,
+ask whether the other should change too. The one thing that is deliberately *not*
 mirrored is `pyweather/usage.py`, which is byte-compatible with `src/usage.ts`
 by necessity — see "The shared ledger" below.
 
@@ -35,6 +50,7 @@ npm run dev                   # src/index.ts — Part 2-3, first API call
 npm run chat                  # src/chat.ts — Part 4, 6, conversation history + cost
 npm run truncate               # src/truncate.ts — Part 5, max_tokens/stop_reason
 npm run bench                  # src/bench.ts — Part 6, Haiku vs Sonnet vs Opus
+npm run usage                   # src/usage-report.ts — Part 6, totals usage.csv, no API call
 npm run weather                 # src/weather-test.ts — Part 7, fetch only, no AI
 npm run parse                   # src/parse-request.ts — Part 8, structured output (zod)
 npm run agent                   # src/agent.ts — Part 9, hand-written tool loop
@@ -55,7 +71,7 @@ uv run chat                   # pyweather/chat.py       ↔ npm run chat
 uv run truncate               # pyweather/truncate.py
 uv run bench                  # pyweather/bench.py
 uv run usage                  # pyweather/usage_report.py — reads the SAME usage.csv
-uv run weather                # pyweather/weather_test.py — no AI, keyless
+uv run weather                # pyweather/weather_test.py — needs WEATHER_API_KEY, no Claude call
 uv run parse                  # pyweather/parse_request.py
 uv run agent                  # pyweather/agent.py
 uv run assistant              # pyweather/assistant.py
@@ -79,9 +95,10 @@ keyless. Run the relevant ones after any edit.
 TypeScript scripts load `.env` via `--env-file=.env`; the Python side calls
 `load_dotenv()` once in `pyweather/__init__.py` instead. Both read the same
 root `.env` (set from `.env.example`; requires `ANTHROPIC_API_KEY` and
-`WEATHER_API_KEY`). Everything except the typecheck gates, `weather`, and
-(partially) `parse`/`models` makes real, billed API calls — keep that in mind
-before running them repeatedly in a loop.
+`WEATHER_API_KEY`). Everything except the typecheck gates, `weather`, `usage`
+(which makes no API call at all), and, probably, `models` (which needs a key
+but only lists them) makes real, billed API calls — keep that in mind before
+running them repeatedly in a loop.
 
 ## Architecture
 

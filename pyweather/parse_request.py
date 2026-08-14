@@ -14,7 +14,7 @@ The rule: if you're about to write a regex to pull a decision out of model
 output, that decision should have been a schema.
 
 Against src/parse-request.ts: that file passes
-`output_config: { format: zodOutputFormat(WeatherRequest) } }`, where
+`output_config: { format: zodOutputFormat(WeatherRequest) }`, where
 zodOutputFormat() converts a zod schema into the wire format the API wants.
 Here, output_format=WeatherRequest takes the pydantic model class directly —
 no adapter function, because the Python SDK builds the JSON schema from the
@@ -25,7 +25,7 @@ needs one fewer step to get there.
 from typing import Literal
 
 from anthropic import Anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .config import MODEL
 from .usage import log_call
@@ -42,22 +42,34 @@ def main() -> None:
 
     question = "do I need a jacket in Chicago this evening?"
 
-    message = client.messages.parse(
-        model=MODEL,
-        max_tokens=1024,
-        system=(
-            "Extract the structured weather request. The location must be a "
-            "plain city name suitable for a weather API lookup."
-        ),
-        messages=[{"role": "user", "content": question}],
-        output_format=WeatherRequest,
-    )
+    # client.messages.parse() calls TypeAdapter.validate_json() with no
+    # try/except of its own, so a response that doesn't match the schema —
+    # truncated by max_tokens, or a refusal that never produced the expected
+    # shape — raises pydantic.ValidationError HERE, before log_call() ever
+    # sees the response and before we get anywhere near the None check
+    # below. This is the actual guard against refusals and truncation.
+    try:
+        message = client.messages.parse(
+            model=MODEL,
+            max_tokens=1024,
+            system=(
+                "Extract the structured weather request. The location must be a "
+                "plain city name suitable for a weather API lookup."
+            ),
+            messages=[{"role": "user", "content": question}],
+            output_format=WeatherRequest,
+        )
+    except ValidationError as err:
+        raise RuntimeError(
+            "Structured output didn't match the schema — likely a truncated "
+            f"or refused response. Original error: {err}"
+        ) from err
 
     log_call("parse", MODEL, question, message)
 
-    # Refusals and truncation still break the shape. A stop_reason of
-    # "refusal" or "max_tokens" returns something that won't match. That's
-    # what this guards.
+    # parsed_output is None when the response has no text block at all (e.g.
+    # the model stopped without producing one) — NOT refusals or truncation,
+    # which raise ValidationError above, well before this line runs.
     if message.parsed_output is None:
         raise RuntimeError(f"No structured output (stop_reason: {message.stop_reason})")
 

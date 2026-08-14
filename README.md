@@ -52,11 +52,19 @@ when it isn't.
 Start at **1**, then **2**. Everything in `src/` is built by document 2, in
 order, one file per lesson.
 
-Document 3 then builds the **same program a second time**, in Python. It is not
-a Python tutorial and teaches no new concepts — the point is the comparison. If
-you only ever see one language you cannot tell which of the things you learned
-are real and which are just how TypeScript happens to write them. Both builds
-write to the same `usage.csv`, so `npm run usage` totals them together.
+Document 3 then builds the **same program a second time**, in Python. It
+introduces no new *Claude* concepts — that is the point. If you only ever see
+one language you cannot tell which of the things you learned are real and which
+are just how TypeScript happens to write them.
+
+**It assumes no Python.** Every Part ends in an `Idea | TypeScript | Python`
+table, so the invariant is visible on every page rather than argued once at the
+end, and it teaches the Python you need to read the program — virtual
+environments, packages and imports, type hints, exceptions, context managers —
+always anchored to the TypeScript you already know.
+
+Both builds write to the same `usage.csv`, so one `npm run usage` totals them
+together. That is the argument made physical rather than asserted.
 
 ---
 
@@ -150,12 +158,14 @@ Three details most tutorials skip:
 own code blocks**, typechecks that, and diffs it back. If a code block and the
 file it teaches ever disagree, CI fails.
 
-It checks five things. Every Markdown file in the repo is structurally sound —
-fences balanced, links resolving. Then, once per document that has companion
-code: the document's code typechecks (including the earlier version of any file
-built in stages), no edit instruction tells you to make a change already
-present, every finished listing matches the real file exactly, and nothing in
-the source tree is left unexplained.
+It checks six things. Every Markdown file in the repo is structurally sound —
+fences balanced, links resolving. The two languages' command lists stay in
+sync — every npm script and every Python entry point in `pyproject.toml` names
+the other, with the one documented exception below. Then, once per document
+that has companion code: the document's code typechecks (including the
+earlier version of any file built in stages), no edit instruction tells you to
+make a change already present, every finished listing matches the real file
+exactly, and nothing in the source tree is left unexplained.
 
 Document 2 is held to that standard by `tsc`, document 3 by `pyright`. Adding a
 second language meant adding a row to a table in `scripts/check-docs.ts`, not a
@@ -194,9 +204,13 @@ content blocks), `src/config.ts` (the model ID, in one place), `src/usage.ts`
 (the ledger and the price table), `src/weather.ts` (the weather client),
 `body.json` (a request body for the raw `curl` exercise in Part 7).
 
-Document 3 gives every one of these a Python counterpart under `pyweather/`,
-run the same way with `uv run` instead of `npm run` — `uv run agent`,
-`uv run parse`, and so on. The names match on purpose.
+Document 3 gives every lesson script above a Python counterpart under
+`pyweather/`, run the same way with `uv run` instead of `npm run` — `uv run
+agent`, `uv run parse`, and so on. The names match on purpose, with one
+exception: `assistant:streaming` becomes `assistant-streaming`, because a
+colon isn't legal in a Python entry-point name. `typecheck:py` is document
+3's own correctness gate, not a per-script counterpart, and `verify:docs`
+isn't mirrored at all — it already checks both trees.
 
 ---
 

@@ -69,10 +69,27 @@ def get_weather(location: str) -> Weather:
 
     # params={...} handles the percent-encoding for you, the way
     # URLSearchParams does in the TypeScript version.
-    response = httpx.get(
-        "https://api.weatherapi.com/v1/current.json",
-        params={"key": api_key, "q": location},
-    )
+    #
+    # httpx ships two defaults that fetch() in src/weather.ts does not: a
+    # 5-second timeout, and no automatic following of redirects. Both are
+    # arguably SAFER defaults than fetch's "wait forever, follow anything" —
+    # but this tutorial's whole point is that the two languages run the same
+    # program, so this is one of the few places that claim needed help.
+    # follow_redirects=True matches fetch's behavior; the explicit (longer)
+    # timeout replaces httpx's silent 5-second one so a slow response fails
+    # the same way for both readers instead of surprising only this one.
+    try:
+        response = httpx.get(
+            "https://api.weatherapi.com/v1/current.json",
+            params={"key": api_key, "q": location},
+            timeout=10.0,
+            follow_redirects=True,
+        )
+    except httpx.TimeoutException as err:
+        # httpx.TimeoutException carries `.request.url`, which contains
+        # WEATHER_API_KEY as a query parameter — the same reason the status
+        # check below never puts the URL in its message. Re-raise without it.
+        raise RuntimeError(f'Weather API timed out for "{location}"') from err
 
     # is_success is true for any 2xx, which is exactly what `response.ok`
     # means in src/weather.ts. `status_code != 200` would look equivalent and
