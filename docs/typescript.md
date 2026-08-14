@@ -471,16 +471,6 @@ const PRICES = {
 
 export type PricedModel = keyof typeof PRICES;
 
-// Dollars per million tokens. Verified 2026-08-14 — re-check against
-// https://docs.x.ai/developers/pricing before trusting a total.
-// Prompts ≥200k tokens double the whole request. We do not implement that
-// branch — every row is priced at the short-context rate.
-const GROK_PRICES = {
-  'grok-4.6': { input: 2, cached: 0.50, output: 6 },
-} as const;
-
-export type GrokPricedModel = keyof typeof GROK_PRICES;
-
 /** Written next to package.json, because npm runs scripts from the project root. */
 const FILE = 'usage.csv';
 
@@ -512,62 +502,6 @@ function field(text: string): string {
 }
 
 /**
- * One vendor-neutral shape so the CSV can stay 15 columns for both APIs.
- *
- * input_tokens is the uncached remainder — Claude's convention, which is
- * the number you actually pay full price for. Grok's Responses API reports
- * the full prompt instead, so fromResponses subtracts.
- */
-export type LedgerUsage = {
-  input_tokens: number;   // uncached remainder (Claude convention)
-  cache_read: number;
-  cache_write: number;    // always 0 for Grok
-  thinking_tokens: number;
-  output_tokens: number;
-};
-
-/** The field math logCall used to inline. One function so the two loggers
- *  cannot drift apart on what "input_tokens" means. */
-export function fromAnthropic(usage: Anthropic.Usage): LedgerUsage {
-  return {
-    input_tokens: usage.input_tokens,
-    cache_read: usage.cache_read_input_tokens ?? 0,
-    cache_write: usage.cache_creation_input_tokens ?? 0,
-    thinking_tokens: usage.output_tokens_details?.thinking_tokens ?? 0,
-    output_tokens: usage.output_tokens,
-  };
-}
-
-/**
- * Local stand-in for the OpenAI Responses usage object. Importing `openai`
- * here would force every Claude-only reader of this file to pull those types.
- */
-type ResponsesUsage = {
-  input_tokens: number;
-  output_tokens: number;
-  input_tokens_details?: { cached_tokens?: number };
-  output_tokens_details?: { reasoning_tokens?: number };
-};
-
-/**
- * Verified 2026-08-14 against a live Responses call: input_tokens was
- * the full prompt and cached_tokens was a subset. Subtract.
- *
- * Responses `input_tokens` is the FULL prompt; `cached_tokens` is a subset.
- * Subtract so the CSV's input_tokens stays the uncached remainder.
- */
-export function fromResponses(usage: ResponsesUsage): LedgerUsage {
-  const cacheRead = usage.input_tokens_details?.cached_tokens ?? 0;
-  return {
-    input_tokens: usage.input_tokens - cacheRead,
-    cache_read: cacheRead,
-    cache_write: 0, // always 0 for Grok — no separate write premium
-    thinking_tokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
-    output_tokens: usage.output_tokens,
-  };
-}
-
-/**
  * What a call actually cost. Four terms, because the prompt is three separate
  * quantities billed at three different rates:
  *
@@ -581,66 +515,15 @@ export function fromResponses(usage: ResponsesUsage): LedgerUsage {
  */
 export function costOf(model: PricedModel, usage: Anthropic.Usage): number {
   const rate = PRICES[model];
-  const ledger = fromAnthropic(usage);
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
 
-  return (
-    ledger.input_tokens * rate.input +
-    ledger.cache_write * rate.input * 1.25 +
-    ledger.cache_read * rate.input * 0.1 +
-    ledger.output_tokens * rate.output
-  ) / 1_000_000;
-}
-
-/** uncached * $2 + cached * $0.50 + output * $6, per million. */
-export function costOfGrok(model: GrokPricedModel, usage: LedgerUsage): number {
-  const rate = GROK_PRICES[model];
   return (
     usage.input_tokens * rate.input +
-    usage.cache_read * rate.cached +
+    cacheWrite * rate.input * 1.25 +
+    cacheRead * rate.input * 0.1 +
     usage.output_tokens * rate.output
   ) / 1_000_000;
-}
-
-/**
- * Shared write so logCall and logGrokCall cannot disagree on the 15 columns.
- *
- * Check the columns before appending. If COLUMNS ever changes, new rows
- * written under an old header line up one column out, `npm run usage`
- * reads the wrong cells, and Number('') is 0 — so it reports $0.00 and
- * looks fine. A cost log that silently says zero is the worst outcome
- * this file could have, so refuse rather than corrupt.
- */
-function appendRow(values: Array<string | number>): void {
-  const header = COLUMNS.join(',');
-
-  if (!existsSync(FILE)) {
-    writeFileSync(FILE, `${BOM}${header}\n`);
-  } else {
-    const existing = readFileSync(FILE, 'utf8').split('\n')[0]?.replace(BOM, '');
-    if (existing !== header) {
-      throw new Error(
-        `${FILE} has different columns than this version of usage.ts writes.\n` +
-          `Rename or delete it and run again — the old rows stay readable in Excel.`,
-      );
-    }
-  }
-
-  appendFileSync(FILE, values.join(',') + '\n');
-}
-
-function printUsage(ledger: LedgerUsage, context: number, cost: number): void {
-  const cached =
-    ledger.cache_read || ledger.cache_write
-      ? ` (+${ledger.cache_read} cached, ${ledger.cache_write} written)`
-      : '';
-  const thought = ledger.thinking_tokens ? ` [${ledger.thinking_tokens} thinking]` : '';
-
-  // Leading newline: when streaming, the answer ends without one, and the
-  // usage line would otherwise run straight into the last word.
-  console.log(
-    `\n[usage] in ${ledger.input_tokens}${cached} · out ${ledger.output_tokens}${thought}` +
-      ` · context ${context} · $${cost.toFixed(6)}`,
-  );
 }
 
 /**
@@ -657,80 +540,70 @@ export function logCall(
   message: Anthropic.Message,
   options: { print?: boolean } = {},
 ): void {
-  const ledger = fromAnthropic(message.usage);
+  const usage = message.usage;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+
+  // output_tokens is the authoritative billed total and ALREADY includes
+  // thinking. Never add these two together.
+  const thinking = usage.output_tokens_details?.thinking_tokens ?? 0;
 
   // The whole prompt you resent this turn — "tokens I need to keep".
-  const context = ledger.input_tokens + ledger.cache_read + ledger.cache_write;
+  const context = usage.input_tokens + cacheRead + cacheWrite;
 
-  const cost = costOf(model, message.usage);
+  const cost = costOf(model, usage);
 
-  appendRow([
-    new Date().toISOString(),
-    RUN_ID,
-    script,
-    model,
-    message.id,
-    ledger.input_tokens,
-    ledger.cache_read,
-    ledger.cache_write,
-    ledger.thinking_tokens,
-    ledger.output_tokens,
-    context,
-    cost.toFixed(6),
-    message.stop_reason ?? '',
-    field(prompt),
-    field(textFrom(message)),
-  ]);
+  const header = COLUMNS.join(',');
+
+  if (!existsSync(FILE)) {
+    writeFileSync(FILE, `${BOM}${header}\n`);
+  } else {
+    // Check the columns before appending. If COLUMNS ever changes, new rows
+    // written under an old header line up one column out, `npm run usage`
+    // reads the wrong cells, and Number('') is 0 — so it reports $0.00 and
+    // looks fine. A cost log that silently says zero is the worst outcome
+    // this file could have, so refuse rather than corrupt.
+    const existing = readFileSync(FILE, 'utf8').split('\n')[0]?.replace(BOM, '');
+    if (existing !== header) {
+      throw new Error(
+        `${FILE} has different columns than this version of usage.ts writes.\n` +
+          `Rename or delete it and run again — the old rows stay readable in Excel.`,
+      );
+    }
+  }
+
+  appendFileSync(
+    FILE,
+    [
+      new Date().toISOString(),
+      RUN_ID,
+      script,
+      model,
+      message.id,
+      usage.input_tokens,
+      cacheRead,
+      cacheWrite,
+      thinking,
+      usage.output_tokens,
+      context,
+      cost.toFixed(6),
+      message.stop_reason ?? '',
+      field(prompt),
+      field(textFrom(message)),
+    ].join(',') + '\n',
+  );
 
   if (options.print === false) return;
 
-  printUsage(ledger, context, cost);
-}
+  const cached = cacheRead || cacheWrite ? ` (+${cacheRead} cached, ${cacheWrite} written)` : '';
+  const thought = thinking ? ` [${thinking} thinking]` : '';
 
-/**
- * Same 15 columns as logCall, no Anthropic types. reply is a string because
- * the Grok text helper does not exist yet.
- *
- * Responses has `status`, not Claude's `stop_reason`. We write that, or an
- * empty string if the field is missing — never @ts-expect-error for it.
- */
-export function logGrokCall(
-  script: string,
-  model: GrokPricedModel,
-  prompt: string,
-  args: {
-    id?: string;
-    usage: ResponsesUsage;
-    status?: string;
-    reply: string;
-    print?: boolean;
-  },
-): void {
-  const ledger = fromResponses(args.usage);
-  const context = ledger.input_tokens + ledger.cache_read + ledger.cache_write;
-  const cost = costOfGrok(model, ledger);
-
-  appendRow([
-    new Date().toISOString(),
-    RUN_ID,
-    script,
-    model,
-    args.id ?? '',
-    ledger.input_tokens,
-    ledger.cache_read,
-    ledger.cache_write,
-    ledger.thinking_tokens,
-    ledger.output_tokens,
-    context,
-    cost.toFixed(6),
-    args.status ?? '',
-    field(prompt),
-    field(args.reply),
-  ]);
-
-  if (args.print === false) return;
-
-  printUsage(ledger, context, cost);
+  // Leading newline: when streaming, the answer ends without one, and the
+  // usage line would otherwise run straight into the last word.
+  console.log(
+    `\n[usage] in ${usage.input_tokens}${cached} · out ${usage.output_tokens}${thought}` +
+      ` · context ${context} · $${cost.toFixed(6)}`,
+  );
 }
 ```
 
@@ -979,18 +852,9 @@ for (const runId of [...new Set(rows.map((r) => r.run_id))]) {
 // --- Caching ----------------------------------------------------------------
 const cacheRead = sum((r) => r.cache_read);
 const cacheWrite = sum((r) => r.cache_write);
-const anyGrok = rows.some((r) => r.model.startsWith('grok'));
 
 console.log('\n--- caching ---');
-if (anyGrok) {
-  // Grok (or mixed) rows: Claude's 0.1× / 1,024 / 1.25× copy is the wrong
-  // story. Grok caches automatically, writes cost nothing extra, and the
-  // dollar savings are already in cost_usd.
-  console.log(`Written to cache  ${cacheWrite.toLocaleString()} tokens`);
-  console.log(`Read from cache   ${cacheRead.toLocaleString()} tokens`);
-  console.log('Grok cache_write is always 0 — there is no separate write premium.');
-  console.log('Savings are already in cost_usd; this report does not re-derive them.');
-} else if (cacheRead === 0 && cacheWrite === 0) {
+if (cacheRead === 0 && cacheWrite === 0) {
   console.log('No cache activity yet. Either caching is off, or every prompt');
   console.log('was under the minimum (1,024 tokens on Sonnet 5). See Part 11.');
 } else {
