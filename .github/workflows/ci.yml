@@ -24,9 +24,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20.x is the supported floor (--env-file arrived in 20.6);
-        # 22.x is what the tutorial is written against.
-        node: ['20.x', '22.x']
+        # 22 is the supported floor (openai requires it). 24 is current LTS.
+        node: ['22.x', '24.x']
 
     steps:
       - uses: actions/checkout@v4

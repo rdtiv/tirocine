@@ -3,8 +3,9 @@
 > **The weatherwise series**
 > 1. Setup — [Windows](setup-windows.md) · **macOS** *(you are here)*
 > 2. [The TypeScript build](typescript.md) — the assistant, start to finish
-> 3. [The Python build](python.md) — the same program again, to see which ideas were real
-> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 3. [The Grok transfer](grok.md) — the same assistant against xAI
+> 4. [The Python build](python.md) — the same program again, to see which ideas were real
+> 5. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
 **Who this is for:** your first real project as a developer. You're on a Mac, you have Claude Code and Cursor, and you have not shipped code before.
 
@@ -82,14 +83,14 @@ Node is the runtime that executes JavaScript and TypeScript outside a browser. `
 
 ```bash
 brew install node jq gh
-node --version    # need v20.6 or later; v22 is what this guide uses
+node --version    # first number must be 22 or higher
 npm --version
 git --version
 ```
 
 `npm` came with Node. It installs code libraries other people wrote. Git is already on your Mac.
 
-> **Why 20.6 specifically.** That's the release where Node learned to read a `.env` file by itself, via the `--env-file` flag every script in this project uses. On an older Node the scripts start and then fail to find your API key, which looks like a key problem and isn't.
+> **Why 22.** One Node on this machine runs every script in the project — Claude and Grok. `--env-file` arrived in 20.6, but the `openai` package the Grok chapter uses requires 22, so 22 is the floor. If `node --version` prints `v20` or older, run `brew upgrade node`, open a new terminal, and check again.
 
 ## 0.5 Git and GitHub
 
@@ -284,6 +285,8 @@ Create `.env` in Cursor:
 ```
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
+
+`XAI_API_KEY` is optional. You only need it later, for [the Grok transfer](grok.md). Get one at [console.x.ai](https://console.x.ai) and add `XAI_API_KEY=...` to `.env` when you get there.
 
 **An API key is a password that spends money.** Three rules, and rule 3 is the one people break:
 

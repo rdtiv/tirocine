@@ -4,6 +4,9 @@
   "description": "A command-line weather assistant built on the Claude API. Companion code for \"Your First Project: A Claude-Powered Weather Assistant in TypeScript\".",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx --env-file=.env src/index.ts",
     "models": "tsx --env-file=.env src/models.ts",
@@ -18,11 +21,21 @@
     "assistant:streaming": "tsx --env-file=.env src/assistant-streaming.ts",
     "stream": "tsx --env-file=.env src/stream.ts",
     "injection": "tsx --env-file=.env src/injection.ts",
+    "grok": "tsx --env-file=.env src/grok-index.ts",
+    "grok:chat": "tsx --env-file=.env src/grok-chat.ts",
+    "grok:parse": "tsx --env-file=.env src/grok-parse.ts",
+    "grok:agent": "tsx --env-file=.env src/grok-agent.ts",
+    "grok:search": "tsx --env-file=.env src/grok-search.ts",
+    "grok:assistant": "tsx --env-file=.env src/grok-assistant.ts",
+    "grok:stream": "tsx --env-file=.env src/grok-stream.ts",
+    "grok:injection": "tsx --env-file=.env src/grok-injection.ts",
+    "grok:models": "tsx --env-file=.env src/grok-models.ts",
     "typecheck": "tsc --noEmit",
     "verify:docs": "tsx scripts/check-docs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
+    "openai": "^7.4.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

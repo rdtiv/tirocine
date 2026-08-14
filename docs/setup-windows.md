@@ -3,8 +3,9 @@
 > **The weatherwise series**
 > 1. Setup — **Windows** · [macOS](setup-mac.md) *(you are here)*
 > 2. [The TypeScript build](typescript.md) — the assistant, start to finish
-> 3. [The Python build](python.md) — the same program again, to see which ideas were real
-> 4. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
+> 3. [The Grok transfer](grok.md) — the same assistant against xAI
+> 4. [The Python build](python.md) — the same program again, to see which ideas were real
+> 5. [The app](app.md) — lifting it onto the web with Next.js, the AI SDK, and Vercel
 
 **Who this is for:** your first real project as a developer. You're on Windows 10 or 11, you have Claude Code and Cursor, and you have not shipped code before.
 
@@ -71,7 +72,7 @@ winget install --id GitHub.cli --exact
 **Close Terminal and open a new one**, then verify:
 
 ```powershell
-node --version    # need v20.6 or later (that's when --env-file arrived); v22 is what this guide uses
+node --version    # first number must be 22 or higher
 npm --version
 git --version
 jq --version
@@ -79,6 +80,8 @@ gh --version
 ```
 
 `npm` came with Node. It installs code libraries other people wrote.
+
+> **Why 22.** One Node on this machine runs every script in the project — Claude and Grok. `--env-file` arrived in 20.6, but the `openai` package the Grok chapter uses requires 22, so 22 is the floor. If `node --version` prints `v20` or older, reinstall the LTS (`winget install --id OpenJS.NodeJS.LTS --exact`), close Terminal, open a new one, and check again.
 
 Git for Windows also installs **Git Bash**, a second terminal that understands Mac and Linux commands. You don't need it for this project, but Claude Code uses it internally, which is why we installed Git before Claude Code rather than after.
 
@@ -302,6 +305,8 @@ Create `.env` in Cursor:
 ```
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
+
+`XAI_API_KEY` is optional. You only need it later, for [the Grok transfer](grok.md). Get one at [console.x.ai](https://console.x.ai) and add `XAI_API_KEY=...` to `.env` when you get there.
 
 **An API key is a password that spends money.** Three rules, and rule 3 is the one people break:
 

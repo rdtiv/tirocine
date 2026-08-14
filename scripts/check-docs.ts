@@ -2,8 +2,8 @@
 //
 // Run: npm run verify:docs
 //
-// The claim this script tests: a reader who types every code block in
-// docs/typescript.md ends up with a project that compiles and matches src/.
+// The claim this script tests: a reader who types every code block in a
+// companion document ends up with a project that compiles and matches src/.
 // That is a mechanical claim, so it should be a mechanical test rather than
 // something a human re-checks by eye and eventually stops re-checking.
 //
@@ -18,8 +18,17 @@
 //      version of any file the document builds in stages.
 //   4. Diff each reconstructed file against the real one in src/.
 //
-// Steps 1-4 apply to docs/typescript.md, the only document with companion code
-// today. Before any of that, every Markdown file in the repo gets a structural
+// Steps 1-4 run once per companion document, because two tutorials now own
+// two disjoint slices of src/:
+//
+//   docs/typescript.md  owns src/*.ts except grok-*   extra: src/models.ts
+//   docs/grok.md        owns src/grok-*.ts            extra: src/grok-models.ts
+//
+// If grok.md is missing and there are no grok-*.ts files, that pass is
+// skipped — a vacuous pass, so this script stays green before the Grok
+// lesson exists. If grok files appear without the document, coverage fails.
+//
+// Before any of that, every Markdown file in the repo gets a structural
 // check — balanced fences and resolving links — because those break in
 // documents that will never have code to diff against, and a mangled code
 // fence in a tutorial is worse than a wrong one: it renders as prose.
@@ -41,7 +50,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-const DOC = 'docs/typescript.md';
+const TS_DOC = 'docs/typescript.md';
+const GROK_DOC = 'docs/grok.md';
 
 /** Fence languages that mean "this is TypeScript the reader might type". */
 const TS_FENCES = new Set(['typescript', 'ts']);
@@ -56,6 +66,16 @@ interface Block {
   code: string;
   kind: 'file' | 'edit' | 'locate' | 'illustrative' | 'demo';
   file?: string;
+}
+
+interface Owner {
+  doc: string;
+  extra: readonly string[];
+  owned: (file: string) => boolean;
+}
+
+function isGrokSrc(file: string): boolean {
+  return file.startsWith('src/grok-') && file.endsWith('.ts');
 }
 
 /**
@@ -117,8 +137,8 @@ function code(src: string): string {
     .join('\n');
 }
 
-function bail(line: number, message: string): never {
-  console.error(`\n${DOC}:${line}  ${message}\n`);
+function bail(doc: string, line: number, message: string): never {
+  console.error(`\n${doc}:${line}  ${message}\n`);
   process.exit(1);
 }
 
@@ -174,259 +194,306 @@ if (structural.length) {
 }
 console.log(`structure: ${MARKDOWN.length} Markdown files — fences balanced, links resolve`);
 
-// --- 1. extract and classify ------------------------------------------------
-const doc = readFileSync(DOC, 'utf8').split('\n');
-const blocks: Block[] = [];
+function extractBlocks(doc: string): Block[] {
+  const lines = readFileSync(doc, 'utf8').split('\n');
+  const blocks: Block[] = [];
 
-for (let i = 0; i < doc.length; i++) {
-  const fence = doc[i]!.trim();
-  if (!fence.startsWith('```')) continue;
+  for (let i = 0; i < lines.length; i++) {
+    const fence = lines[i]!.trim();
+    if (!fence.startsWith('```')) continue;
 
-  const lang = fence.slice(3).trim().toLowerCase();
-  let end = i + 1;
-  while (end < doc.length && doc[end]!.trim() !== '```') end++;
+    const lang = fence.slice(3).trim().toLowerCase();
+    let end = i + 1;
+    while (end < lines.length && lines[end]!.trim() !== '```') end++;
 
-  if (!TS_FENCES.has(lang)) {
-    if (!IGNORED_FENCES.has(lang)) {
-      bail(
-        i + 1,
-        `unknown fence language \`${lang}\`.\n` +
-          `  Add it to TS_FENCES if it is TypeScript the reader types, or to\n` +
-          `  IGNORED_FENCES if it is not. Silently skipping it is not an option.`,
-      );
-    }
-    i = end;
-    continue;
-  }
-
-  const start = i + 1; // 0-based index of the first code line
-  const src = doc.slice(start, end).join('\n');
-  const n = blocks.length + 1;
-  const first = src.split('\n')[0] ?? '';
-
-  let kind: Block['kind'];
-  let file: string | undefined;
-
-  if (first.startsWith('// Illustrative —')) {
-    kind = 'illustrative';
-  } else if (first.startsWith('// Demo —')) {
-    kind = 'demo';
-  } else if (first.startsWith('// Edit — splice this into ')) {
-    kind = 'edit';
-    file = first.replace('// Edit — splice this into ', '').replace(/;.*$/, '').trim();
-  } else if (first.startsWith('// Locate — find this in ')) {
-    kind = 'locate';
-    file = first.replace('// Locate — find this in ', '').replace(/;.*$/, '').trim();
-  } else if (first.startsWith('// File — ')) {
-    kind = 'file';
-    file = first.replace('// File — ', '').replace(/\s*\(.*$/, '').trim();
-  } else {
-    const context = doc.slice(Math.max(0, start - 12), start - 1).join('\n');
-    const named = [...context.matchAll(/`(src\/[a-z-]+\.ts)`/g)].pop();
-    if (!named) {
-      bail(
-        start + 1,
-        `block ${n} cannot be classified.\n` +
-          `  No marker comment, and no \`src/*.ts\` filename in the prose above it.\n` +
-          `  Add a marker as the block's first line, one of:\n` +
-          `    // Illustrative — showing a shape, not a file to create.\n` +
-          `    // Edit — splice this into src/<file>.ts; not a whole file.\n` +
-          `    // Locate — find this in src/<file>.ts; you are not changing it yet.\n` +
-          `    // File — src/<file>.ts\n` +
-          `    // Demo — complete, but never saved to a file.\n` +
-          `  ...or name the file in the sentence that introduces the block.`,
-      );
-    }
-    kind = 'file';
-    file = named[1];
-  }
-
-  blocks.push({ n, line: start + 1, code: src, kind, file });
-  i = end;
-}
-
-const fileBlocks = blocks.filter((b) => b.kind === 'file');
-const byFile = new Map<string, Block[]>();
-for (const b of fileBlocks) byFile.set(b.file!, [...(byFile.get(b.file!) ?? []), b]);
-
-/** The reader's end state for each file: the last block the document gives. */
-const finalOf = new Map([...byFile].map(([f, bs]) => [f, bs[bs.length - 1]!]));
-/** Earlier versions the document later edits — a real state the reader occupies. */
-const earlyOf = new Map([...byFile].filter(([, bs]) => bs.length > 1).map(([f, bs]) => [f, bs[0]!]));
-
-console.log(
-  `${DOC}: ${blocks.length} TypeScript blocks — ${fileBlocks.length} file listings ` +
-    `(${finalOf.size} distinct, ${earlyOf.size} with earlier versions), ` +
-    `${blocks.filter((b) => b.kind === 'edit').length} edits, ` +
-    `${blocks.filter((b) => b.kind === 'locate').length} locators, ` +
-    `${blocks.filter((b) => b.kind === 'illustrative').length} illustrative, ` +
-    `${blocks.filter((b) => b.kind === 'demo').length} demo`,
-);
-
-// Every file the document claims to build must actually exist, or the diff
-// step below would crash with a bare ENOENT instead of saying what is wrong.
-for (const [f, b] of finalOf) {
-  if (!existsSync(f)) {
-    bail(b.line, `the document builds ${f}, but that file does not exist in src/.`);
-  }
-}
-
-let failures = 0;
-const work = mkdtempSync(join(tmpdir(), 'weatherwise-docs-'));
-
-try {
-  // --- 2. rebuild src/ from the document, then compile ----------------------
-  cpSync('src', join(work, 'src'), { recursive: true });
-  cpSync('tsconfig.json', join(work, 'tsconfig.json'));
-  // package.json matters: "type": "module" is what makes top-level await legal.
-  // Without it every file compiles as CommonJS and you get a wall of TS1309.
-  cpSync('package.json', join(work, 'package.json'));
-  // Symlink rather than copy — the tree is hundreds of megabytes and tsc only
-  // needs to resolve @anthropic-ai/sdk and zod out of it.
-  symlinkSync(resolve('node_modules'), join(work, 'node_modules'), 'dir');
-
-  const compile = (label: string, versions: Map<string, Block>): void => {
-    for (const [f, b] of versions) writeFileSync(join(work, f), b.code + '\n');
-    try {
-      execFileSync('npx', ['tsc', '--noEmit', '-p', 'tsconfig.json'], {
-        cwd: work,
-        stdio: 'pipe',
-        encoding: 'utf8',
-      });
-      console.log(`compile (${label}): typechecks`);
-    } catch (err) {
-      const out = (err as { stdout?: string }).stdout ?? String(err);
-      console.error(`\ncompile FAILED (${label}) — code in the document does not build:\n`);
-      for (const line of out.trim().split('\n')) {
-        const m = line.match(/^src\/([a-z-]+\.ts)\((\d+),\d+\)/);
-        const b = m ? versions.get(`src/${m[1]}`) : undefined;
-        const at = b ? `${DOC}:${b.line + Number(m![2]) - 1}` : m ? `src/${m[1]}` : '';
-        console.error(at ? `  ${at}  ${line.replace(/^\S+\s/, '')}` : `  ${line}`);
-      }
-      failures++;
-    }
-  };
-
-  compile('final versions', finalOf);
-
-  if (earlyOf.size) {
-    // The reader spends real time in these intermediate states. If an early
-    // listing does not compile, they hit it long before reaching the final one.
-    const names = [...earlyOf.keys()].map((f) => f.replace('src/', '')).join(', ');
-    compile(`earlier versions of ${names}`, earlyOf);
-    for (const [f, b] of finalOf) writeFileSync(join(work, f), b.code + '\n'); // restore
-  }
-
-  // --- 3. an edit must actually change something ----------------------------
-  const redundant: string[] = [];
-  for (const b of blocks.filter((x) => x.kind === 'edit')) {
-    const base = finalOf.get(b.file!);
-    if (!base) continue;
-    const baseLines = new Set(code(base.code).split('\n').map((l) => l.trim()));
-    const adds = code(b.code)
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !baseLines.has(l));
-    if (adds.length === 0) {
-      redundant.push(
-        `  ${DOC}:${b.line} tells the reader to edit ${b.file},\n` +
-          `    but every line it adds is already in that file's listing at ${DOC}:${base.line}.`,
-      );
-    }
-  }
-  if (redundant.length) {
-    console.error(`\nordering FAILED — ${redundant.length} edit(s) instruct a change already made:\n`);
-    console.error(redundant.join('\n\n') + '\n');
-    failures++;
-  } else {
-    console.log('ordering: every edit block adds something its file does not already have');
-  }
-
-  // --- 4. diff the document's files against the real ones -------------------
-  const editLines = new Map<string, Set<string>>();
-  for (const b of blocks.filter((x) => x.kind === 'edit')) {
-    const acc = editLines.get(b.file!) ?? new Set<string>();
-    for (const l of code(b.code).split('\n')) acc.add(l.trim());
-    editLines.set(b.file!, acc);
-  }
-
-  const drift: string[] = [];
-  const staged: string[] = [];
-
-  for (const [f, b] of finalOf) {
-    const fromDoc = code(b.code);
-    const fromSrc = code(readFileSync(f, 'utf8'));
-
-    if (editLines.has(f)) {
-      // Built in stages: this block is an early version the document later
-      // edits, so check that every line src/ has beyond it was introduced by
-      // one of those edits rather than appearing from nowhere.
-      const base = new Set(fromDoc.split('\n').map((l) => l.trim()));
-      const edits = editLines.get(f)!;
-      const unexplained = fromSrc
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l && !base.has(l) && !edits.has(l));
-      if (unexplained.length) {
-        drift.push(
-          `  ${f} (built in stages)\n` +
-            `    in src/ but never introduced by the document:\n` +
-            unexplained.map((l) => `      ${JSON.stringify(l)}`).join('\n'),
+    if (!TS_FENCES.has(lang)) {
+      if (!IGNORED_FENCES.has(lang)) {
+        bail(
+          doc,
+          i + 1,
+          `unknown fence language \`${lang}\`.\n` +
+            `  Add it to TS_FENCES if it is TypeScript the reader types, or to\n` +
+            `  IGNORED_FENCES if it is not. Silently skipping it is not an option.`,
         );
-      } else {
-        staged.push(f);
       }
+      i = end;
       continue;
     }
 
-    if (fromDoc === fromSrc) continue;
+    const start = i + 1; // 0-based index of the first code line
+    const src = lines.slice(start, end).join('\n');
+    const n = blocks.length + 1;
+    const first = src.split('\n')[0] ?? '';
 
-    const a = fromDoc.split('\n');
-    const c = fromSrc.split('\n');
-    // Scan to the longer of the two, so "identical prefix, extra tail" names
-    // the extra lines instead of reporting a pair of undefineds.
-    let i = 0;
-    while (i < Math.max(a.length, c.length) && a[i] === c[i]) i++;
-    drift.push(
-      `  ${f}\n` +
-        `    ${DOC}:${b.line + i} has: ` +
-        `${a[i] === undefined ? '(nothing — the block ends here)' : JSON.stringify(a[i])}\n` +
-        `    ${f} has: ${c[i] === undefined ? '(nothing — the file ends here)' : JSON.stringify(c[i])}`,
-    );
+    let kind: Block['kind'];
+    let file: string | undefined;
+
+    if (first.startsWith('// Illustrative —')) {
+      kind = 'illustrative';
+    } else if (first.startsWith('// Demo —')) {
+      kind = 'demo';
+    } else if (first.startsWith('// Edit — splice this into ')) {
+      kind = 'edit';
+      file = first.replace('// Edit — splice this into ', '').replace(/;.*$/, '').trim();
+    } else if (first.startsWith('// Locate — find this in ')) {
+      kind = 'locate';
+      file = first.replace('// Locate — find this in ', '').replace(/;.*$/, '').trim();
+    } else if (first.startsWith('// File — ')) {
+      kind = 'file';
+      file = first.replace('// File — ', '').replace(/\s*\(.*$/, '').trim();
+    } else {
+      const context = lines.slice(Math.max(0, start - 12), start - 1).join('\n');
+      const named = [...context.matchAll(/`(src\/[a-z-]+\.ts)`/g)].pop();
+      if (!named) {
+        bail(
+          doc,
+          start + 1,
+          `block ${n} cannot be classified.\n` +
+            `  No marker comment, and no \`src/*.ts\` filename in the prose above it.\n` +
+            `  Add a marker as the block's first line, one of:\n` +
+            `    // Illustrative — showing a shape, not a file to create.\n` +
+            `    // Edit — splice this into src/<file>.ts; not a whole file.\n` +
+            `    // Locate — find this in src/<file>.ts; you are not changing it yet.\n` +
+            `    // File — src/<file>.ts\n` +
+            `    // Demo — complete, but never saved to a file.\n` +
+            `  ...or name the file in the sentence that introduces the block.`,
+        );
+      }
+      kind = 'file';
+      file = named[1];
+    }
+
+    blocks.push({ n, line: start + 1, code: src, kind, file });
+    i = end;
   }
 
-  if (drift.length) {
-    console.error(`\ndiff FAILED — ${drift.length} file(s) differ between the document and src/:\n`);
-    console.error(drift.join('\n\n') + '\n');
-    failures++;
-  } else {
-    console.log(`diff: ${finalOf.size - staged.length} file(s) match src/ exactly`);
-    if (staged.length) {
-      console.log(
-        `      ${staged.length} built in stages, every later line accounted for: ` +
-          staged.map((f) => f.replace('src/', '')).join(', '),
-      );
+  return blocks;
+}
+
+/** Extract → classify → compile staged → diff → coverage, for one owner. */
+function runPipeline(owner: Owner): number {
+  const { doc } = owner;
+  const blocks = extractBlocks(doc);
+
+  const fileBlocks = blocks.filter((b) => b.kind === 'file');
+  const byFile = new Map<string, Block[]>();
+  for (const b of fileBlocks) byFile.set(b.file!, [...(byFile.get(b.file!) ?? []), b]);
+
+  /** The reader's end state for each file: the last block the document gives. */
+  const finalOf = new Map([...byFile].map(([f, bs]) => [f, bs[bs.length - 1]!]));
+  /** Earlier versions the document later edits — a real state the reader occupies. */
+  const earlyOf = new Map([...byFile].filter(([, bs]) => bs.length > 1).map(([f, bs]) => [f, bs[0]!]));
+
+  console.log(
+    `${doc}: ${blocks.length} TypeScript blocks — ${fileBlocks.length} file listings ` +
+      `(${finalOf.size} distinct, ${earlyOf.size} with earlier versions), ` +
+      `${blocks.filter((b) => b.kind === 'edit').length} edits, ` +
+      `${blocks.filter((b) => b.kind === 'locate').length} locators, ` +
+      `${blocks.filter((b) => b.kind === 'illustrative').length} illustrative, ` +
+      `${blocks.filter((b) => b.kind === 'demo').length} demo`,
+  );
+
+  // Every file the document claims to build must actually exist, or the diff
+  // step below would crash with a bare ENOENT instead of saying what is wrong.
+  for (const [f, b] of finalOf) {
+    if (!existsSync(f)) {
+      bail(doc, b.line, `the document builds ${f}, but that file does not exist in src/.`);
     }
   }
 
-  // --- 5. nothing in src/ is left unexplained -------------------------------
-  const unbuilt = readdirSync('src')
-    .filter((f) => f.endsWith('.ts'))
-    .map((f) => `src/${f}`)
-    .filter((f) => !finalOf.has(f) && f !== 'src/models.ts');
+  let failures = 0;
+  const work = mkdtempSync(join(tmpdir(), 'weatherwise-docs-'));
 
-  if (unbuilt.length) {
-    console.error(`\ncoverage FAILED — in src/ but never built by the document:\n  ${unbuilt.join('\n  ')}\n`);
-    failures++;
-  } else {
-    console.log(
-      'coverage: every file in src/ is built by the document (except src/models.ts, a documented extra)',
-    );
+  try {
+    // --- 2. rebuild src/ from the document, then compile ----------------------
+    // Copy all of src/, then overwrite this document's files. The other
+    // owner's files stay as they are on disk so the project still typechecks.
+    cpSync('src', join(work, 'src'), { recursive: true });
+    cpSync('tsconfig.json', join(work, 'tsconfig.json'));
+    // package.json matters: "type": "module" is what makes top-level await legal.
+    // Without it every file compiles as CommonJS and you get a wall of TS1309.
+    cpSync('package.json', join(work, 'package.json'));
+    // Symlink rather than copy — the tree is hundreds of megabytes and tsc only
+    // needs to resolve @anthropic-ai/sdk, openai, and zod out of it.
+    symlinkSync(resolve('node_modules'), join(work, 'node_modules'), 'dir');
+
+    const compile = (label: string, versions: Map<string, Block>): void => {
+      for (const [f, b] of versions) writeFileSync(join(work, f), b.code + '\n');
+      try {
+        execFileSync('npx', ['tsc', '--noEmit', '-p', 'tsconfig.json'], {
+          cwd: work,
+          stdio: 'pipe',
+          encoding: 'utf8',
+        });
+        console.log(`compile (${doc}, ${label}): typechecks`);
+      } catch (err) {
+        const out = (err as { stdout?: string }).stdout ?? String(err);
+        console.error(`\ncompile FAILED (${doc}, ${label}) — code in the document does not build:\n`);
+        for (const line of out.trim().split('\n')) {
+          const m = line.match(/^src\/([a-z-]+\.ts)\((\d+),\d+\)/);
+          const b = m ? versions.get(`src/${m[1]}`) : undefined;
+          const at = b ? `${doc}:${b.line + Number(m![2]) - 1}` : m ? `src/${m[1]}` : '';
+          console.error(at ? `  ${at}  ${line.replace(/^\S+\s/, '')}` : `  ${line}`);
+        }
+        failures++;
+      }
+    };
+
+    compile('final versions', finalOf);
+
+    if (earlyOf.size) {
+      // The reader spends real time in these intermediate states. If an early
+      // listing does not compile, they hit it long before reaching the final one.
+      const names = [...earlyOf.keys()].map((f) => f.replace('src/', '')).join(', ');
+      compile(`earlier versions of ${names}`, earlyOf);
+      for (const [f, b] of finalOf) writeFileSync(join(work, f), b.code + '\n'); // restore
+    }
+
+    // --- 3. an edit must actually change something ----------------------------
+    const redundant: string[] = [];
+    for (const b of blocks.filter((x) => x.kind === 'edit')) {
+      const base = finalOf.get(b.file!);
+      if (!base) continue;
+      const baseLines = new Set(code(base.code).split('\n').map((l) => l.trim()));
+      const adds = code(b.code)
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l && !baseLines.has(l));
+      if (adds.length === 0) {
+        redundant.push(
+          `  ${doc}:${b.line} tells the reader to edit ${b.file},\n` +
+            `    but every line it adds is already in that file's listing at ${doc}:${base.line}.`,
+        );
+      }
+    }
+    if (redundant.length) {
+      console.error(`\nordering FAILED (${doc}) — ${redundant.length} edit(s) instruct a change already made:\n`);
+      console.error(redundant.join('\n\n') + '\n');
+      failures++;
+    } else {
+      console.log(`ordering (${doc}): every edit block adds something its file does not already have`);
+    }
+
+    // --- 4. diff the document's files against the real ones -------------------
+    const editLines = new Map<string, Set<string>>();
+    for (const b of blocks.filter((x) => x.kind === 'edit')) {
+      const acc = editLines.get(b.file!) ?? new Set<string>();
+      for (const l of code(b.code).split('\n')) acc.add(l.trim());
+      editLines.set(b.file!, acc);
+    }
+
+    const drift: string[] = [];
+    const staged: string[] = [];
+
+    for (const [f, b] of finalOf) {
+      const fromDoc = code(b.code);
+      const fromSrc = code(readFileSync(f, 'utf8'));
+
+      if (editLines.has(f)) {
+        // Built in stages: this block is an early version the document later
+        // edits, so check that every line src/ has beyond it was introduced by
+        // one of those edits rather than appearing from nowhere.
+        const base = new Set(fromDoc.split('\n').map((l) => l.trim()));
+        const edits = editLines.get(f)!;
+        const unexplained = fromSrc
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l && !base.has(l) && !edits.has(l));
+        if (unexplained.length) {
+          drift.push(
+            `  ${f} (built in stages)\n` +
+              `    in src/ but never introduced by the document:\n` +
+              unexplained.map((l) => `      ${JSON.stringify(l)}`).join('\n'),
+          );
+        } else {
+          staged.push(f);
+        }
+        continue;
+      }
+
+      if (fromDoc === fromSrc) continue;
+
+      const a = fromDoc.split('\n');
+      const c = fromSrc.split('\n');
+      // Scan to the longer of the two, so "identical prefix, extra tail" names
+      // the extra lines instead of reporting a pair of undefineds.
+      let i = 0;
+      while (i < Math.max(a.length, c.length) && a[i] === c[i]) i++;
+      drift.push(
+        `  ${f}\n` +
+          `    ${doc}:${b.line + i} has: ` +
+          `${a[i] === undefined ? '(nothing — the block ends here)' : JSON.stringify(a[i])}\n` +
+          `    ${f} has: ${c[i] === undefined ? '(nothing — the file ends here)' : JSON.stringify(c[i])}`,
+      );
+    }
+
+    if (drift.length) {
+      console.error(`\ndiff FAILED (${doc}) — ${drift.length} file(s) differ between the document and src/:\n`);
+      console.error(drift.join('\n\n') + '\n');
+      failures++;
+    } else {
+      console.log(`diff (${doc}): ${finalOf.size - staged.length} file(s) match src/ exactly`);
+      if (staged.length) {
+        console.log(
+          `      ${staged.length} built in stages, every later line accounted for: ` +
+            staged.map((f) => f.replace('src/', '')).join(', '),
+        );
+      }
+    }
+
+    // --- 5. nothing this document owns in src/ is left unexplained ------------
+    const extras = new Set(owner.extra);
+    const extraNote = owner.extra.map((f) => f.replace('src/', '')).join(', ');
+    const unbuilt = readdirSync('src')
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => `src/${f}`)
+      .filter((f) => owner.owned(f) && !finalOf.has(f) && !extras.has(f));
+
+    if (unbuilt.length) {
+      console.error(
+        `\ncoverage FAILED (${doc}) — in src/ but never built by the document:\n  ${unbuilt.join('\n  ')}\n`,
+      );
+      failures++;
+    } else {
+      console.log(
+        `coverage (${doc}): every owned file in src/ is built by the document` +
+          (extraNote ? ` (except ${extraNote}, a documented extra)` : ''),
+      );
+    }
+  } finally {
+    // In a finally block: an early failure used to leak a temp directory holding
+    // a full copy of node_modules.
+    rmSync(work, { recursive: true, force: true });
   }
-} finally {
-  // In a finally block: an early failure used to leak a temp directory holding
-  // a full copy of node_modules.
-  rmSync(work, { recursive: true, force: true });
+
+  return failures;
+}
+
+let failures = runPipeline({
+  doc: TS_DOC,
+  extra: ['src/models.ts'],
+  owned: (file) => !isGrokSrc(file),
+});
+
+const grokFiles = readdirSync('src')
+  .filter((f) => f.startsWith('grok-') && f.endsWith('.ts'))
+  .map((f) => `src/${f}`);
+
+if (!existsSync(GROK_DOC) && grokFiles.length === 0) {
+  // Vacuous pass: the Grok lesson is a later package. Do not require the
+  // document to exist until there is code for it to own.
+  console.log(`${GROK_DOC}: skipped — no document and no src/grok-*.ts files`);
+} else if (!existsSync(GROK_DOC)) {
+  console.error(
+    `\ncoverage FAILED — src/grok-*.ts exist but ${GROK_DOC} does not:\n  ${grokFiles.join('\n  ')}\n`,
+  );
+  failures++;
+} else {
+  failures += runPipeline({
+    doc: GROK_DOC,
+    extra: ['src/grok-models.ts'],
+    owned: isGrokSrc,
+  });
 }
 
 if (failures) {

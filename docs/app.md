@@ -3,8 +3,9 @@
 > **The weatherwise series**
 > 1. Setup — [Windows](setup-windows.md) · [macOS](setup-mac.md)
 > 2. [The TypeScript build](typescript.md) — the assistant, start to finish
-> 3. [The Python build](python.md) — the same program again, to see which ideas were real
-> 4. **The app** — lifting it onto the web with Next.js, the AI SDK, and Vercel *(you are here)*
+> 3. [The Grok transfer](grok.md) — the same assistant against xAI
+> 4. [The Python build](python.md) — the same program again, to see which ideas were real
+> 5. **The app** — lifting it onto the web with Next.js, the AI SDK, and Vercel *(you are here)*
 
 **Before you start:** finish [the TypeScript build](typescript.md). This document takes the assistant you already have and puts it on the web.
 
