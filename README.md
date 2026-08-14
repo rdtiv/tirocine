@@ -1,5 +1,7 @@
 # tirocine
 
+[![CI](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml/badge.svg)](https://github.com/rdtiv/tirocine/actions/workflows/ci.yml)
+
 Learning to build on large language models, one project at a time.
 
 The first project is **weatherwise** — a command-line weather assistant built on
@@ -171,3 +173,10 @@ mostly fallen out of use.
 shorter one to type. It was chosen because the original meaning is exactly
 right: this is a first campaign. Not a portfolio, not a framework. Somewhere to
 be new at something and have that be the point.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use the code, copy it into your own projects,
+teach from it. Attribution is welcome but not required.
