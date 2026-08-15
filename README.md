@@ -246,7 +246,8 @@ costs in TypeScript, because it is the same call.
 weather, so they need **both** keys. Everything else that calls Claude needs
 only `ANTHROPIC_API_KEY`.
 
-Every call is logged to `usage.csv`, so you never have to guess.
+Every call that spends tokens is logged to `usage.csv`, so you never have to
+guess.
 
 **Set a spend limit on your Anthropic account anyway.** A loop with a mistake in
 it can call the API thousands of times a minute, and you will write one, because
@@ -262,7 +263,10 @@ secrets.
 
 If you change a file in `src/`, change the matching code block in
 `docs/typescript.md` too; likewise `pyweather/` and `docs/python.md`.
-`verify:docs` will tell you if you forget, and it names the exact line.
+`verify:docs` will tell you if you forget, and it names the exact line — with
+one blind spot worth knowing: it strips comments from both sides before it
+compares, so a teaching comment can drift out of step with its listing while
+every gate still passes. Those you have to keep in sync yourself.
 
 Changing one language is usually a reason to look at the other. The two builds
 are meant to stay the same program, and `pyweather/usage.py` in particular
