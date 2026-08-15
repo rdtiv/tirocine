@@ -7,10 +7,9 @@
 # pyweather/usage.py can't get away with the same trick. It resolves the
 # ledger from `__file__` instead — two directories up from usage.py, which
 # lands here, at the repo root, no matter where `uv run` was invoked from.
-# Without that, the Python lessons could
-# quietly create a SECOND usage.csv wherever you happened to be standing, and
-# the whole point of this document — one artifact, two languages — would
-# evaporate.
+# Without that, the Python lessons could quietly create a SECOND usage.csv
+# wherever you happened to be standing, and the whole point of this document
+# — one artifact, two languages — would evaporate.
 #
 # Same directory, same file. `uv run agent` and `npm run agent` append to it.
 

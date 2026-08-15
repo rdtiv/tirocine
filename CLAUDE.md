@@ -219,3 +219,11 @@ also drops **docstrings** that sit alone on their own lines, because Python
 puts its teaching headers in docstrings where TypeScript puts them in `//`
 comments; without that the document would have to reproduce every docstring
 verbatim.
+
+**The stripping is also a blind spot, and it is the one to remember.** Because
+comments are removed from *both* sides before the diff gate compares them, a
+teaching comment can drift out of step with its listing in the document — or
+say something flatly untrue — while all six gates stay green. The comments are
+the teaching in this repo, so that is not a small hole: when you edit a comment
+in `src/` or `pyweather/`, sync the document's copy by hand, because nothing
+else will.
