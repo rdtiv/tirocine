@@ -1,12 +1,14 @@
 // Part 7 — The same call in TypeScript. No AI in this file at all.
 //
-// Four ideas in here, and all four transfer to every API you'll ever call:
+// Five ideas in here, and all five transfer to every API you'll ever call:
 //
 //   1. `fetch` makes the HTTP request — same thing curl.exe did, from code.
 //   2. `await` waits for the network.
 //   3. `response.ok` is a check you cannot skip. fetch does NOT throw on a
 //      401 or 404; it hands you a response with a bad status and moves on.
-//   4. The two interfaces do different jobs. WeatherApiResponse describes what
+//   4. The time limit is yours to set. fetch does have a default, but it is
+//      undici's 300 seconds — say the limit out loud instead of inheriting it.
+//   5. The two interfaces do different jobs. WeatherApiResponse describes what
 //      the SERVICE sends. Weather is what YOUR program uses. Keeping them
 //      separate means switching providers changes one file.
 
@@ -49,11 +51,11 @@ export async function getWeather(location: string): Promise<Weather> {
   const params = new URLSearchParams({ key: apiKey, q: location });
   const url = `https://api.weatherapi.com/v1/current.json?${params}`;
 
-  // fetch has NO timeout by default: a server that accepts your connection and
-  // then says nothing hangs this call forever, and Part 9's tool loop with it.
-  // httpx (the Python build) ships a 5s default for exactly this reason; both
-  // builds now say 10s out loud, so neither depends on a default you'd have to
-  // go and read.
+  // fetch's default timeout is not one you'd want to inherit: undici, the HTTP
+  // engine behind it, gives up after 300 seconds. httpx (the Python build)
+  // gives up after 5. Both builds say 10s out loud, so the number comes from
+  // the program rather than from whichever engine is underneath — and a server
+  // that goes quiet doesn't take Part 9's tool loop down with it.
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
   if (!response.ok) {

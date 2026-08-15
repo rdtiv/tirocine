@@ -1289,8 +1289,11 @@ export async function getWeather(location: string): Promise<Weather> {
   const params = new URLSearchParams({ key: apiKey, q: location });
   const url = `https://api.weatherapi.com/v1/current.json?${params}`;
 
-  // fetch has NO timeout by default — a server that accepts the connection
-  // and then goes quiet hangs this call forever. Say the limit out loud.
+  // fetch's default timeout is not one you'd want to inherit: undici, the HTTP
+  // engine behind it, gives up after 300 seconds. httpx (the Python build)
+  // gives up after 5. Both builds say 10s out loud, so the number comes from
+  // the program rather than from whichever engine is underneath — and a server
+  // that goes quiet doesn't take Part 9's tool loop down with it.
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
   if (!response.ok) {
@@ -1371,7 +1374,7 @@ Five ideas in that file, and all five transfer to every API you'll ever call:
 
 **`response.ok` is a check you cannot skip.** If the API returns a 401 or a 404, `fetch` does *not* throw. It hands you a response object with a bad status and moves on. Skipping this check is how you end up with `undefined` errors three functions away from the actual problem.
 
-**`fetch` has no timeout at all.** Not a long one — none. A server that accepts your connection and then goes quiet leaves this call waiting forever, and from Part 9 onward it hangs your tool loop along with it. `AbortSignal.timeout(10_000)` is you saying the limit out loud, because there is no default to inherit. Most HTTP clients in other languages *do* ship one, which is exactly why this is worth knowing rather than assuming.
+**`fetch`'s timeout is not one you'd want to inherit.** There is one: undici, the HTTP engine behind Node's `fetch`, gives up after 300 seconds. But five minutes is not a limit, it's an outage — and the number appears nowhere in the `fetch` documentation you'd think to read. Python's `httpx` gives up after 5 seconds, sixty times sooner. Neither default is wrong exactly; they just disagree, and a server that accepts your connection and then goes quiet is the case that finds out. `AbortSignal.timeout(10_000)` is you saying the limit out loud, so the number comes from your program instead of from whichever engine happens to be underneath. From Part 9 onward, a request that hangs hangs your tool loop with it.
 
 **The two interfaces are doing different jobs.** `WeatherApiResponse` describes what the *service* sends — their shape, their naming, their `feelslike_f`. `Weather` is what *your* program uses. Keeping them separate means the day you switch weather providers, you change one file and nothing else breaks. That's not beginner over-engineering; it's the reason the next section is easy.
 

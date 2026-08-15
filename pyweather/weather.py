@@ -1,17 +1,20 @@
 """Part 7 — The same call in Python. No AI in this file at all.
 
-Four ideas in here, and all four transfer to every API you'll ever call:
+Five ideas in here, and all five transfer to every API you'll ever call:
 
   1. `httpx.get` makes the HTTP request — same thing curl.exe did, from code.
   2. There is no `await`. This is the one real difference from TypeScript.
   3. The status check is one you cannot skip. httpx does NOT raise on a 401 or
      404; it hands you a response with a bad status and moves on. (Same as
      fetch. Same as almost every HTTP client.)
-  4. The two shapes do different jobs. WeatherApiResponse describes what the
+  4. The time limit is yours to set. httpx does have a default — 5 seconds,
+     applied to each operation separately — but the two languages disagree
+     about the number, so say it out loud rather than inherit either one.
+  5. The two shapes do different jobs. WeatherApiResponse describes what the
      SERVICE sends. Weather is what YOUR program uses. Keeping them separate
      means switching providers changes one file.
 
-On the fourth point, compare src/weather.ts: it uses two `interface`
+On the fifth point, compare src/weather.ts: it uses two `interface`
 declarations, which vanish at compile time. Here they are pydantic models,
 which exist at runtime and actually validate the JSON. That is a real
 difference in kind, not just syntax — TypeScript's `as WeatherApiResponse` is
@@ -77,14 +80,17 @@ def get_weather(location: str) -> Weather:
     # params={...} handles the percent-encoding for you, the way
     # URLSearchParams does in the TypeScript version.
     #
-    # httpx ships two defaults that fetch() in src/weather.ts does not: a
-    # 5-second timeout, and no automatic following of redirects. Both are
-    # arguably SAFER defaults than fetch's "wait forever, follow anything" —
-    # but this tutorial's whole point is that the two languages run the same
-    # program, so this is one of the few places that claim needed help.
-    # follow_redirects=True matches fetch's behavior; the explicit (longer)
-    # timeout replaces httpx's silent 5-second one so a slow response fails
-    # the same way for both readers instead of surprising only this one.
+    # httpx and fetch() in src/weather.ts disagree about two defaults: how long
+    # to wait, and whether to follow redirects. httpx gives up after 5 seconds
+    # and follows nothing; fetch gives up after 300 (undici's default) and
+    # follows redirects. The timeouts differ in kind as well as size —
+    # timeout=10.0 gives each operation 10 seconds (connect, read, write,
+    # pool), where AbortSignal.timeout(10_000) is one deadline for the whole
+    # call. This tutorial's whole point is that the two languages run the same
+    # program, so both say 10s out loud: follow_redirects=True matches fetch,
+    # and the explicit timeout replaces httpx's silent 5-second one so a slow
+    # response fails the same way for both readers instead of surprising only
+    # this one.
     try:
         response = httpx.get(
             "https://api.weatherapi.com/v1/current.json",
