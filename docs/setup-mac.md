@@ -89,7 +89,7 @@ git --version
 
 `npm` came with Node. It installs code libraries other people wrote. Git is already on your Mac.
 
-> **Why 20.6 specifically.** That's the release where Node learned to read a `.env` file by itself, via the `--env-file` flag every script in this project uses. On an older Node the scripts start and then fail to find your API key, which looks like a key problem and isn't.
+> **Why 20.6 specifically.** That's the release where Node learned to read a `.env` file by itself, via the `--env-file` flag every script that needs a key uses. On an older Node the scripts start and then fail to find your API key, which looks like a key problem and isn't.
 
 ## 0.5 Git and GitHub
 

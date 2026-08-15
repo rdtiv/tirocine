@@ -61,8 +61,9 @@ npm run assistant:streaming         # src/assistant-streaming.ts — Part 10.3/1
 npm run models                       # src/models.ts — lists model IDs available to the API key
 ```
 
-The Python half runs the same lessons through `uv`, from the **repo root**, not
-from inside `pyweather/`:
+The Python half runs the same lessons through `uv`, and — unlike the npm
+scripts above — from any directory inside the repo: `pyweather/` resolves
+both the ledger and `.env` from its own location on disk, not from cwd.
 
 ```bash
 npm run typecheck:py          # pyright, strict — run this after any pyweather/ edit
@@ -200,11 +201,20 @@ with `404 not_found_error`, or pricing looks off, run `npm run models` to check
 what the live API actually returns rather than trusting this repo or the
 tutorial document.
 
-**`verify:docs` covers both documents.** `scripts/check-docs.ts` holds a
-`LANGUAGES` table: everything language-specific (fence names, marker comment
-syntax, comment stripping, how to typecheck, which directory) lives there, and
-the four gates — compile, ordering, diff, coverage — are shared. Adding a third
-language means adding a row, not a branch. Note the Python comment stripper
+**`verify:docs` covers both documents.** `scripts/check-docs.ts` runs six
+gates: two repo-wide ones first — structure (every Markdown file's fences
+balance and its links resolve) and command parity (every `package.json`
+script has a matching `uv run` entry point in `pyproject.toml`, and vice
+versa) — then, per document, the four code-coupling gates: compile, ordering,
+diff, coverage. A `LANGUAGES` table holds everything language-specific (fence
+names, marker comment syntax, comment stripping, how to typecheck, which
+directory); the six gates themselves are shared, so adding a third language
+means adding a row, not a branch. The command parity gate is why adding an
+npm script without a matching `[project.scripts]` entry in `pyproject.toml`
+fails `verify:docs` — three scripts are deliberately exempt from that check
+(`NPM_ONLY` in `check-docs.ts`): `typecheck`, `typecheck:py`, and
+`verify:docs` itself, since they're infrastructure, not lessons, and have no
+Python counterpart to pair with. Note the Python comment stripper
 also drops **docstrings** that sit alone on their own lines, because Python
 puts its teaching headers in docstrings where TypeScript puts them in `//`
 comments; without that the document would have to reproduce every docstring
