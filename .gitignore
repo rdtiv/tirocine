@@ -8,3 +8,31 @@ usage.csv
 .venv/
 __pycache__/
 *.pyc
+
+# Claude Code. The blanket sweeps everything under .claude/, which is what
+# keeps mission worktrees out: they are whole checkouts — node_modules and all —
+# living inside the repo, so `git add -A` here would otherwise stage a second
+# copy of the tree.
+#
+# Mind the star. `.claude/` without it excludes the directory itself, and git
+# never descends into an excluded directory, so `!` negations under it silently
+# do nothing. `.claude/*` excludes the children instead, which is what makes
+# the whitelist below work at all.
+#
+# The whitelist is claude-infra's house pattern (see its README and the report
+# in sync-repo.sh, which checks this file and never edits it). It exists for the
+# repo-level install: cloud sessions have no `~/.claude` to read agents, hooks
+# or landed.sh from, so those have to be committed here to work at all.
+#
+# `!.claude/settings.json` is the one addition — claude-infra's list omits it
+# while its own setup prompt says to commit that file. See
+# https://github.com/rdtiv/claude-infra/issues/12; drop this line if that
+# resolves the other way. `settings.local.json` stays ignored either way.
+.claude/*
+!.claude/agents/
+!.claude/hooks/
+!.claude/commands/
+!.claude/scripts/
+!.claude/workflows/
+!.claude/.claude-infra-version
+!.claude/settings.json
