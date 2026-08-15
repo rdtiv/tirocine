@@ -122,7 +122,8 @@ uv run dev             # the same first Claude call, in Python
 write to that one file. npm gets there for free, because it runs its scripts
 from the project root; the Python side does not lean on that — `pyweather/`
 resolves both the ledger and `.env` from its own location on disk, so `uv run`
-finds them from whichever directory you happened to be standing in.
+finds them from whichever directory inside the repo you happened to be standing
+in.
 
 ---
 
@@ -130,8 +131,8 @@ finds them from whichever directory you happened to be standing in.
 
 ### You can see what you spend
 
-An API key gets you no dashboard. So every call in every script appends a row to
-`usage.csv` — fifteen columns you can open in Excel and add up:
+An API key gets you no dashboard. So every call that spends tokens appends a row
+to `usage.csv` — fifteen columns you can open in Excel and add up:
 
 - **when and what** — `timestamp`, `run_id`, `script`, `model`, `message_id`
 - **what went in** — `input_tokens`, `cache_read`, `cache_write`
@@ -193,7 +194,7 @@ listing pointing at the wrong endpoint.
 | `npm run truncate` | `src/truncate.ts` | 5 | `max_tokens: 30` cuts the answer off mid-sentence. `stop_reason` is how you find out. |
 | `npm run bench` | `src/bench.ts` | 6 | Haiku vs Sonnet vs Opus on three tasks of rising difficulty. Time, cost, and quality side by side. |
 | `npm run usage` | `src/usage-report.ts` | 6 | Reads `usage.csv` and totals it. No API key needed. |
-| `npm run weather` | `src/weather-test.ts` | 7 | `fetch`, `await`, and `response.ok`. No AI in this one at all. |
+| `npm run weather` | `src/weather-test.ts` | 7 | `fetch`, `await`, `response.ok`, a time limit you set yourself, and two types where you'd expect one. No AI in this one at all. |
 | `npm run parse` | `src/parse-request.ts` | 8 | Structured output. Stop parsing prose out of model replies. |
 | `npm run agent` | `src/agent.ts` | 9 | Tools. The model requests; **your code executes**. The loop, hand-written. |
 | `npm run assistant` | `src/assistant.ts` | 9 | The finished project — a chat loop with a tool loop inside it. |
@@ -214,14 +215,15 @@ Document 3 gives every lesson script above a Python counterpart under
 `pyweather/`, run the same way with `uv run` instead of `npm run` — `uv run
 agent`, `uv run parse`, and so on. The names match on purpose, with one
 exception: `assistant:streaming` becomes `assistant-streaming`, because a
-colon isn't legal in a Python entry-point name. `typecheck:py` is document
-3's own correctness gate, not a per-script counterpart, and `typecheck` and
-`verify:docs` aren't mirrored at all — `verify:docs` already checks both trees.
+colon isn't legal in a Python entry-point name. Three names have no `uv run`
+counterpart at all — `typecheck`, `typecheck:py` and `verify:docs` — because
+they are gates rather than lessons. You reach the Python typecheck through
+`npm run typecheck:py`, and `verify:docs` already checks both trees at once.
 
 The four helpers have counterparts too — `pyweather/text.py`, `config.py`,
 `usage.py`, `weather.py` — plus one with no TypeScript equivalent:
 `pyweather/__init__.py`, which loads `.env` once for the whole package where
-the npm scripts each pass `--env-file`.
+the scripts that need a key pass `--env-file`.
 
 ---
 
@@ -234,7 +236,8 @@ costs in TypeScript, because it is the same call.
 |---|---|
 | `typecheck`, `typecheck:py`, `verify:docs`, `usage` | Free, and no key needed at all |
 | `weather` | Free — needs `WEATHER_API_KEY`, but makes no Claude call |
-| `dev`, `truncate`, `stream`, `parse`, `models` | A fraction of a cent each |
+| `models` | Free — needs `ANTHROPIC_API_KEY`, but only lists models; it spends no tokens |
+| `dev`, `truncate`, `stream`, `parse` | A fraction of a cent each |
 | `agent`, `injection` | A fraction of a cent — a short tool loop, a few calls |
 | `bench` | About 2¢ — nine calls across three models, most of it Opus |
 | `chat`, `assistant`, `assistant:streaming` | Pennies per session |

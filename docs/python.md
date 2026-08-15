@@ -148,8 +148,11 @@ with one difference worth knowing: plain `uv sync` may *update* the lockfile if
 `pyproject.toml` has changed, whereas `npm ci` refuses. The strict equivalent is
 `uv sync --locked`, which is what CI runs.
 
-> **Run every command from the repository root**, not from inside `pyweather/`.
-> That is where `usage.csv` lives and where `npm run` puts you automatically.
+> **These work from any directory inside the repo.** `npm run` always puts you
+> at the project root; `uv run` runs wherever you are standing. So `pyweather/`
+> resolves both `usage.csv` and `.env` from its own location on disk instead —
+> you'll write that line yourself in Part 6, and it is why the directory
+> doesn't matter here.
 
 ### The file TypeScript doesn't have
 
@@ -1206,14 +1209,17 @@ def get_weather(location: str) -> Weather:
     # params={...} handles the percent-encoding for you, the way
     # URLSearchParams does in the TypeScript version.
     #
-    # httpx ships two defaults that fetch() in src/weather.ts does not: a
-    # 5-second timeout, and no automatic following of redirects. Both are
-    # arguably SAFER defaults than fetch's "wait forever, follow anything" —
-    # but this tutorial's whole point is that the two languages run the same
-    # program, so this is one of the few places that claim needed help.
-    # follow_redirects=True matches fetch's behavior; the explicit (longer)
-    # timeout replaces httpx's silent 5-second one so a slow response fails
-    # the same way for both readers instead of surprising only this one.
+    # httpx and fetch() in src/weather.ts disagree about two defaults: how long
+    # to wait, and whether to follow redirects. httpx gives up after 5 seconds
+    # and follows nothing; fetch gives up after 300 (undici's default) and
+    # follows redirects. The timeouts differ in kind as well as size —
+    # timeout=10.0 gives each operation 10 seconds (connect, read, write,
+    # pool), where AbortSignal.timeout(10_000) is one deadline for the whole
+    # call. This tutorial's whole point is that the two languages run the same
+    # program, so both say 10s out loud: follow_redirects=True matches fetch,
+    # and the explicit timeout replaces httpx's silent 5-second one so a slow
+    # response fails the same way for both readers instead of surprising only
+    # this one.
     try:
         response = httpx.get(
             "https://api.weatherapi.com/v1/current.json",
@@ -1274,7 +1280,8 @@ Now the comparison this Part exists for. Read it against `src/weather.ts`:
 | Make an HTTP request | `fetch(url)` | `httpx.get(url)` |
 | Safe URL encoding | `URLSearchParams` | `params={...}` |
 | Check before trusting | `if (!response.ok)` | `if not response.is_success` |
-| Time limit on the request | `AbortSignal.timeout(10_000)` — **no default at all** | `timeout=10.0` — httpx defaults to 5s |
+| Time limit on the request | `AbortSignal.timeout(10_000)` — one deadline for the whole call; undici defaults to 300s | `timeout=10.0` — 10s *per operation*; httpx defaults to 5s |
+| Follow redirects | automatic in `fetch` | `follow_redirects=True` — httpx defaults to off |
 | Raise a failure | `throw new Error(...)` | `raise RuntimeError(...)` |
 | Read JSON | `await response.json()` | `response.json()` |
 | Trust the JSON's shape | `data as WeatherApiResponse` | `.model_validate(data)` — **a real check** |
