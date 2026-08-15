@@ -2,10 +2,15 @@
 # for one specific reason: usage.csv.
 #
 # src/usage.ts writes 'usage.csv' as a RELATIVE path, resolved against the
-# process's working directory. npm runs its scripts from the project root, so
-# that is where the ledger lands. If the Python lessons ran from inside
-# pyweather/, they would quietly create a SECOND usage.csv in there, and the
-# whole point of this document — one artifact, two languages — would evaporate.
+# process's working directory. That's safe for npm, which always runs its
+# scripts from the project root — but `uv run` makes no such promise, so
+# pyweather/usage.py can't get away with the same trick. It resolves the
+# ledger from `__file__` instead — two directories up from usage.py, which
+# lands here, at the repo root, no matter where `uv run` was invoked from.
+# Without that, the Python lessons could
+# quietly create a SECOND usage.csv wherever you happened to be standing, and
+# the whole point of this document — one artifact, two languages — would
+# evaporate.
 #
 # Same directory, same file. `uv run agent` and `npm run agent` append to it.
 
